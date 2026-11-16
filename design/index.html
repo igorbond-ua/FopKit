@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FopKit — головна</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: #e4e1db;
+    color: #2a2825;
+    font-family: "Helvetica Neue", "Segoe UI", sans-serif;
+  }
+  .wrap { width: min(1180px, calc(100% - 40px)); margin: 28px auto 48px; }
+  .sheet {
+    background: #e7eef5;
+    color: #1a2c3d;
+    border-radius: 18px;
+    padding: 22px;
+    box-shadow: 0 16px 40px rgba(40, 36, 28, 0.08);
+  }
+  .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 0 6px; }
+  .brand { font-size: 13px; letter-spacing: 0.16em; font-weight: 700; }
+  .session { display: flex; align-items: center; gap: 12px; }
+  .who { font-size: 13px; color: #5c7084; }
+  .desk { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; align-items: start; }
+  .panel { background: #f7fbfe; border: 1px solid #c9d8e8; border-radius: 8px; padding: 16px; }
+  h2 { margin: 0; font-size: 16px; font-weight: 700; }
+  .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .year, .check {
+    display: inline-block;
+    border: 1px solid #c9d8e8;
+    background: #fff;
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 12px;
+    color: #3e5870;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #d5e2ee; padding: 6px 10px; font-size: 13px; }
+  th {
+    background: #e7f0f8;
+    text-align: left;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #4d657a;
+    font-weight: 700;
+  }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .empty { opacity: 0.45; }
+  .paid { background: #dceddf; color: #1d6840; font-weight: 700; }
+  .quarter td { background: #e8f1f8; font-weight: 700; }
+  .year-total td { background: #d5e4f2; font-weight: 700; }
+  .side { display: flex; flex-direction: column; gap: 16px; }
+  .field { margin-bottom: 4px; }
+  .field span { display: block; font-size: 11px; color: #5c7084; margin-bottom: 4px; }
+  .box {
+    border: 1px solid #c9d8e8;
+    background: #fff;
+    border-radius: 4px;
+    padding: 8px 10px;
+    color: #8aa0b4;
+    font-size: 14px;
+  }
+  .chips { display: flex; }
+  .chip { flex: 1; text-align: center; padding: 8px 0; border: 1px solid #c9d8e8; background: #fff; font-size: 13px; color: #4d657a; }
+  .chip.on { background: #2f5f8a; color: #f4f8fb; border-color: #2f5f8a; }
+  .add, .refresh, .cabinet {
+    background: #2f5f8a;
+    color: #f4f8fb;
+    text-align: center;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .add { margin-top: 6px; padding: 9px 0; font-size: 14px; }
+  .refresh, .cabinet { padding: 8px 12px; }
+  .recent h2 { margin-bottom: 12px; }
+  .reqs-panel { margin-top: 16px; }
+  .reqs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 22px; margin-top: 4px; }
+  .slip h3 { margin: 0 0 6px; font-size: 13px; }
+  .kv { display: block; padding: 7px 0; font-size: 12px; color: #4d657a; }
+  .kv span { display: block; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="sheet">
+      <div class="top">
+        <div class="brand">FOPKIT</div>
+        <div class="session">
+          <div class="who">Бондаренко Ігор · 3 група, без ПДВ · 2026</div>
+          <div class="cabinet">Кабінет</div>
+        </div>
+      </div>
+      <div class="desk">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Помісячно</h2>
+            <div class="year">2026 ▾</div>
+          </div>
+          <div class="check">☐ не розраховувати ЄСВ</div>
+          <table style="margin-top:12px">
+            <thead>
+              <tr>
+                <th>Місяць</th>
+                <th class="num">Сума в грн</th>
+                <th class="num">Єдиний податок</th>
+                <th class="num">Військовий збір</th>
+                <th class="num">ЄСВ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Січень</td><td class="num empty">—</td><td class="num empty">—</td><td class="num empty">—</td><td class="num">1 902,34</td></tr>
+              <tr><td>Лютий</td><td class="num empty">—</td><td class="num empty">—</td><td class="num empty">—</td><td class="num">1 902,34</td></tr>
+              <tr><td>Березень</td><td class="num empty">—</td><td class="num empty">—</td><td class="num empty">—</td><td class="num">1 902,34</td></tr>
+              <tr class="quarter"><td>1-квартал</td><td class="num empty">—</td><td class="num empty">—</td><td class="num empty">—</td><td class="num">5 707,02</td></tr>
+              <tr><td>Квітень</td><td class="num empty">—</td><td class="num empty">—</td><td class="num empty">—</td><td class="num">1 902,34</td></tr>
+              <tr><td>Травень</td><td class="num empty">—</td><td class="num empty">—</td><td class="num empty">—</td><td class="num">1 902,34</td></tr>
+              <tr><td>Червень</td><td class="num empty">—</td><td class="num empty">—</td><td class="num empty">—</td><td class="num">1 902,34</td></tr>
+              <tr class="quarter"><td>2-квартал</td><td class="num empty">—</td><td class="num empty">—</td><td class="num empty">—</td><td class="num">5 707,02</td></tr>
+              <tr><td>Липень</td><td class="num empty">—</td><td class="num empty">—</td><td class="num empty">—</td><td class="num">1 902,34</td></tr>
+              <tr><td>Серпень</td><td class="num">12 000,00</td><td class="num">600,00</td><td class="num">120,00</td><td class="num">1 902,34</td></tr>
+              <tr><td>Вересень</td><td class="num">12 525,00</td><td class="num">626,25</td><td class="num">125,25</td><td class="num">1 902,34</td></tr>
+              <tr class="quarter"><td>3-квартал</td><td class="num">24 525,00</td><td class="num">1 226,25</td><td class="num">245,25</td><td class="num">5 707,02</td></tr>
+              <tr><td>Жовтень</td><td class="num">30 280,00</td><td class="num">1 514,00</td><td class="num">302,80</td><td class="num paid">1 902,34</td></tr>
+              <tr><td>Листопад</td><td class="num">55 882,37</td><td class="num">2 794,12</td><td class="num">558,83</td><td class="num">1 902,34</td></tr>
+              <tr><td>Грудень</td><td class="num empty">—</td><td class="num empty">—</td><td class="num empty">—</td><td class="num empty">—</td></tr>
+              <tr class="quarter"><td>4-квартал</td><td class="num">86 162,37</td><td class="num">4 308,12</td><td class="num">861,63</td><td class="num">3 804,68</td></tr>
+              <tr class="year-total"><td>Разом за рік</td><td class="num">110 687,37</td><td class="num">5 534,37</td><td class="num">1 106,88</td><td class="num">20 925,74</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="side">
+          <div class="panel">
+            <h2>Новий прибуток</h2>
+            <div class="field" style="margin-top:8px"><span>Дата</span><div class="box">дд.мм.рррр</div></div>
+            <div class="field"><span>Сума</span><div class="box">0,00</div></div>
+            <div class="field"><span>Валюта</span><div class="chips"><span class="chip on">грн</span><span class="chip">євро</span><span class="chip">долар</span></div></div>
+            <div class="add">Додати</div>
+          </div>
+          <div class="panel recent">
+            <h2>Останні записи</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th class="num">Сума грн</th>
+                  <th>Валюта</th>
+                  <th class="num">Сума в валюті</th>
+                  <th class="num">Курс</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>20.11.2026</td><td class="num">12 450,21</td><td>долар</td><td class="num">300,00</td><td class="num">41,5007</td></tr>
+                <tr><td>12.11.2026</td><td class="num">18 432,16</td><td>євро</td><td class="num">400,00</td><td class="num">46,0804</td></tr>
+                <tr><td>03.11.2026</td><td class="num">25 000,00</td><td>грн</td><td class="num empty">—</td><td class="num empty">—</td></tr>
+                <tr><td>28.10.2026</td><td class="num">15 000,00</td><td>грн</td><td class="num empty">—</td><td class="num empty">—</td></tr>
+                <tr><td>15.10.2026</td><td class="num">9 100,00</td><td>євро</td><td class="num">200,00</td><td class="num">45,5000</td></tr>
+                <tr><td>02.10.2026</td><td class="num">6 180,00</td><td>долар</td><td class="num">150,00</td><td class="num">41,2000</td></tr>
+                <tr><td>21.09.2026</td><td class="num">8 000,00</td><td>грн</td><td class="num empty">—</td><td class="num empty">—</td></tr>
+                <tr><td>10.09.2026</td><td class="num">4 525,00</td><td>євро</td><td class="num">100,00</td><td class="num">45,2500</td></tr>
+                <tr><td>18.08.2026</td><td class="num">12 000,00</td><td>грн</td><td class="num empty">—</td><td class="num empty">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="panel reqs-panel">
+        <div class="panel-head">
+          <h2>Реквізити для оплати</h2>
+          <div class="refresh">Оновити реквізити</div>
+        </div>
+        <div class="reqs">
+          <div class="slip">
+            <h3>ЄП</h3>
+            <div class="kv"><span>Отримувач</span><span class="empty">не заповнено</span></div>
+            <div class="kv"><span>ЄДРПОУ</span><span class="empty">не заповнено</span></div>
+            <div class="kv"><span>IBAN</span><span class="empty">не заповнено</span></div>
+            <div class="kv"><span>Банк</span><span class="empty">не заповнено</span></div>
+            <div class="kv"><span>МФО</span><span class="empty">не заповнено</span></div>
+            <div class="kv"><span>Призначення</span><span class="empty">не заповнено</span></div>
+          </div>
+          <div class="slip">
+            <h3>ЄСВ</h3>
+            <div class="kv"><span>Отримувач</span><span class="empty">не заповнено</span></div>
+            <div class="kv"><span>ЄДРПОУ</span><span class="empty">не заповнено</span></div>
+            <div class="kv"><span>IBAN</span><span class="empty">не заповнено</span></div>
+            <div class="kv"><span>Банк</span><span class="empty">не заповнено</span></div>
+            <div class="kv"><span>МФО</span><span class="empty">не заповнено</span></div>
+            <div class="kv"><span>Призначення</span><span class="empty">не заповнено</span></div>
+          </div>
+          <div class="slip">
+            <h3>ВВ</h3>
+            <div class="kv"><span>Отримувач</span><span class="empty">не заповнено</span></div>
+            <div class="kv"><span>ЄДРПОУ</span><span class="empty">не заповнено</span></div>
+            <div class="kv"><span>IBAN</span><span class="empty">не заповнено</span></div>
+            <div class="kv"><span>Банк</span><span class="empty">не заповнено</span></div>
+            <div class="kv"><span>МФО</span><span class="empty">не заповнено</span></div>
+            <div class="kv"><span>Призначення</span><span class="empty">не заповнено</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

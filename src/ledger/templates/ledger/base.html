@@ -1,0 +1,13 @@
+{% load static %}<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}FopKit{% endblock %}</title>
+<link rel="stylesheet" href="{% static 'ledger/app.css' %}">
+</head>
+<body {% block body_attrs %}{% endblock %}>
+{% block body %}{% endblock %}
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,13 @@
+---
+description: When creating a new file, add it to the root README.md tree with a short Ukrainian description.
+alwaysApply: true
+---
+
+# Update README
+
+When you create a new file, add it to the tree in the root `README.md`.
+
+- The path in the tree must match the real file path.
+- Add a short `#` comment saying what the file is. Write that comment in Ukrainian.
+- If you create a new folder, add it too, with a short Ukrainian note about its purpose.
+- Keep the existing tree format. Do not rewrite descriptions of files this change does not touch.

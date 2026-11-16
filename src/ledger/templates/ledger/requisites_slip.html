@@ -1,0 +1,11 @@
+<div class="slip">
+  <h3>{{ slip.title }}</h3>
+  {% with r=slip.requisite %}
+    <div class="kv"><span>Отримувач</span>{% if r %}<span>{{ r.recipient }}</span>{% else %}<span class="empty">не заповнено</span>{% endif %}</div>
+    <div class="kv"><span>ЄДРПОУ</span>{% if r %}<span>{{ r.recipient_code }}</span>{% else %}<span class="empty">не заповнено</span>{% endif %}</div>
+    <div class="kv"><span>IBAN</span>{% if r %}<span class="iban">{{ r.iban }}</span>{% else %}<span class="empty">не заповнено</span>{% endif %}</div>
+    <div class="kv"><span>Банк</span>{% if r %}<span>{{ r.bank }}</span>{% else %}<span class="empty">не заповнено</span>{% endif %}</div>
+    <div class="kv"><span>{{ slip.code_label }}</span>{% if r %}<span>{{ r.code }}</span>{% else %}<span class="empty">не заповнено</span>{% endif %}</div>
+    <div class="kv"><span>Призначення</span><span class="purpose">{{ slip.purpose }}</span></div>
+  {% endwith %}
+</div>

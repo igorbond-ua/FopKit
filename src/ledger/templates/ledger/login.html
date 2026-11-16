@@ -1,0 +1,26 @@
+{% extends "ledger/base.html" %}
+{% block title %}Вхід — FopKit{% endblock %}
+{% block body %}
+<div class="login-wrap">
+  <div class="sheet login-sheet">
+    <div class="top"><div class="brand">FOPKIT</div></div>
+    <form method="post" class="panel">
+      {% csrf_token %}
+      <h2>Вхід</h2>
+      {% if form.non_field_errors %}
+        <ul class="errorlist">{% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+      {% endif %}
+      <label class="field" style="margin-top:12px">
+        <span>Логін</span>
+        <input class="box" type="text" name="username" value="{{ form.username.value|default:'' }}" autocomplete="username" autofocus required>
+      </label>
+      <label class="field">
+        <span>Пароль</span>
+        <input class="box" type="password" name="password" autocomplete="current-password" required>
+      </label>
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit" class="btn add">Увійти</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

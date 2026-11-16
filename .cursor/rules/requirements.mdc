@@ -1,0 +1,11 @@
+---
+description: Keep the product specification in requirements/tz.md and update that file when product information changes.
+alwaysApply: true
+---
+
+# Product specification
+
+- Keep a single product specification at `requirements/tz.md`, in Ukrainian.
+- When the user adds or changes product requirements, update that file. Do not create a second specification.
+- Record anything still undecided under open questions. Do not turn it into a requirement.
+- Confirmed answers replace the matching assumption or open question.

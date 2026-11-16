@@ -1,0 +1,10 @@
+---
+description: Write Cursor rules and skills in English. Write the root README and requirements in Ukrainian.
+alwaysApply: true
+---
+
+# Language
+
+- Write every file in `.cursor/rules/` and `.cursor/skills/` in English, including the frontmatter `description` and the body.
+- Write `README.md` and files in `requirements/` in Ukrainian, including the README tree comments.
+- Keep this split when rules overlap: rule and skill text stays English, README text stays Ukrainian.
