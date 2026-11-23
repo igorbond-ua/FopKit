@@ -134,12 +134,8 @@
     var box = new lib.jk.Box({ algo: lib.algo });
     var keyBuf = bufferFromStore(keyBytes);
 
-    // Load private key
+    // Load private key — for JKS the cert is embedded and loaded automatically.
     box.load({ keyBuffers: [keyBuf], password: password || "" });
-
-    // JKS files pack certs as separate trusted entries in the same file —
-    // loading the same buffer as certBuffers extracts them and links to the key.
-    box.load({ certBuffers: [keyBuf] });
 
     // Load accompanying certificate if provided separately (Key-6.dat case)
     if (certBytes) {
