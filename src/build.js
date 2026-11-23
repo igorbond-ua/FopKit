@@ -19,6 +19,10 @@ esbuild
       "node:crypto": path.join(__dirname, "static_src", "node_crypto_shim.js"),
       "fs": path.join(__dirname, "static_src", "fs_shim.js"),
     },
+    // Inject Buffer as a true global BEFORE any bundled module runs.
+    // asn1.js references Buffer as a global at module evaluation time,
+    // so a simple import+assign in the entry point is too late.
+    inject: [path.join(__dirname, "static_src", "buffer_inject.js")],
     outfile: path.join(
       __dirname,
       "ledger",

@@ -13,10 +13,6 @@
  *   .jk    — the full jkurwa module (Box, Certificate, Priv, …)
  *   .algo  — pre-built algo object for Box({ algo })
  */
-import { Buffer } from "buffer";
-// Make Buffer available as a global (jkurwa internally references it without import in some paths)
-globalThis.Buffer = Buffer;
-
 import * as jk from "jkurwa";
 import gost89 from "gost89";
 import dstu7564 from "dstu7564";
