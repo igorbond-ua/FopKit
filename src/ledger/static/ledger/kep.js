@@ -114,13 +114,13 @@
   }
 
   function bufferFromStore(val) {
-    // Values saved by saveKey() may be ArrayBuffer (from FileReader).
-    // jkurwa wants a Buffer (which in its browser bundle is polyfilled).
-    var lib = getLib();
-    // jkurwaLib.jk re-exports Buffer from the 'buffer' polyfill via jkurwa
-    var Buf = lib.jk.b64_decode; // sanity check the lib is real
-    void Buf;
-    if (val instanceof ArrayBuffer) return new Uint8Array(val);
+    // jkurwa requires proper Buffer instances (not plain Uint8Array).
+    // globalThis.Buffer is set by our jkurwa_entry.js bundle.
+    var Buf = globalThis.Buffer;
+    if (!Buf) throw new Error("LIBRARY_NOT_LOADED");
+    if (val instanceof ArrayBuffer) return Buf.from(new Uint8Array(val));
+    if (val instanceof Uint8Array) return Buf.from(val);
+    if (typeof val === "string") return Buf.from(val, "binary");
     return val;
   }
 
