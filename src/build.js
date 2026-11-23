@@ -12,7 +12,6 @@ esbuild
     bundle: true,
     platform: "browser",
     format: "iife",
-    globalName: "jkurwaLib",
     // node:crypto  → tiny shim (only .rng() is used, for random number generation)
     // node:fs      → empty stub (we never pass privPath in browser code)
     alias: {

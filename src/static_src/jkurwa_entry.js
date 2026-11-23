@@ -1,18 +1,36 @@
 /**
  * jkurwa_entry.js — entry point bundled by build.js → jkurwa.bundle.js
  *
- * Bundles together:
- *   - jkurwa    — ДСТУ 4145-2002 crypto (EC signing, CAdES-BES construction)
- *   - gost89    — GOST 34.311-95 hash (used by pre-2019 CA certificates)
- *   - dstu7564  — ДСТУ 7564 Kupyna-256 hash (used by post-2019 CA certificates)
- *
- * Both hash families are registered so the Box auto-picks the right one based
- * on the signer certificate OID.
- *
- * Exposed as: window.jkurwaLib  (IIFE global via esbuild globalName)
- *   .jk    — the full jkurwa module (Box, Certificate, Priv, …)
- *   .algo  — pre-built algo object for Box({ algo })
+ * Assigns window.jkurwaLib = { jk, algo } directly instead of relying on
+ * esbuild globalName re-export mechanism (which breaks with named re-exports).
  */
+import { Buffer } from "buffer";
+
+// Patch Buffer onto Uint8Array prototype so that any Uint8Array created by
+// asn1.js or jkurwa internals gets Buffer methods (readUInt32BE etc).
+// This is needed because the buffer polyfill subclasses Uint8Array but code
+// may receive plain Uint8Arrays and call Buffer methods on them.
+if (typeof globalThis.Buffer === "undefined" || globalThis.Buffer !== Buffer) {
+  globalThis.Buffer = Buffer;
+}
+// Patch missing Buffer methods onto plain Uint8Array instances created before
+// or outside the Buffer class (belt-and-braces for readUInt32BE etc).
+const _proto = Uint8Array.prototype;
+const _bproto = Buffer.prototype;
+const _methods = [
+  "readUInt8","readUInt16BE","readUInt16LE","readUInt32BE","readUInt32LE",
+  "readInt8","readInt16BE","readInt16LE","readInt32BE","readInt32LE",
+  "writeUInt8","writeUInt16BE","writeUInt16LE","writeUInt32BE","writeUInt32LE",
+  "writeInt8","writeInt16BE","writeInt16LE","writeInt32BE","writeInt32LE",
+  "slice","copy","fill","equals","compare","toString","toJSON",
+  "readDoubleBE","readDoubleLE","readFloatBE","readFloatLE",
+];
+for (const m of _methods) {
+  if (_bproto[m] && !_proto[m]) {
+    _proto[m] = _bproto[m];
+  }
+}
+
 import * as jk from "jkurwa";
 import gost89 from "gost89";
 import dstu7564 from "dstu7564";
@@ -24,17 +42,15 @@ function kupynaHash(data) {
 }
 
 const algo = {
-  // Default hash used when the cert OID does not map to a known family:
   hash: gostHash,
   hashes: {
-    // GOST 34.311 (pre-2019 CAs)
     Gost34311: gostHash,
     Dstu4145le: gostHash,
-    // Kupyna / ДСТУ 7564 (post-2019 CAs)
     Dstu4145leWithDstu7564: kupynaHash,
     Dstu7564: kupynaHash,
     "Dstu7564-256": kupynaHash,
   },
 };
 
-export { jk, algo };
+// Assign directly — don't rely on esbuild globalName for named re-exports.
+window.jkurwaLib = { jk, algo };
