@@ -1,0 +1,27 @@
+{% extends "ledger/page_base.html" %}
+{% load static %}
+{% block page_title %}FopKit — Реквізити{% endblock %}
+
+{% block page_content %}
+<div class="panel reqs-panel">
+  <div class="panel-head">
+    <h2>Реквізити для оплати</h2>
+    <form method="post" action="{% url 'refresh_requisites' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn">Оновити реквізити</button>
+    </form>
+  </div>
+  <div class="reqs">
+    {% for slip in requisite_slips %}
+      {% include "ledger/requisites_slip.html" %}
+    {% endfor %}
+  </div>
+  {% with checked=requisite_slips.0.requisite %}
+    {% if checked %}
+      <p class="reqs-note">Перевірено {{ checked.checked_at|date:"d.m.Y H:i" }} на <a href="{{ checked.source_url }}" target="_blank" rel="noopener">сайті податкової</a>.</p>
+    {% else %}
+      <p class="reqs-note">Реквізити ще не завантажені. Вкажіть у кабінеті область і громаду, потім натисніть «Оновити реквізити».</p>
+    {% endif %}
+  {% endwith %}
+</div>
+{% endblock %}

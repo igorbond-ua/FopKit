@@ -1,0 +1,118 @@
+{% extends "ledger/page_base.html" %}
+{% load static ledger %}
+{% block page_title %}FopKit — Розрахунки з бюджетом{% endblock %}
+
+{% block page_content %}
+<div class="panel settlements-panel">
+  <div class="panel-head settlements-head">
+    <div class="settlements-controls">
+      <form method="get" action="{% url 'settlements' %}" id="settlements-year-form">
+        <label class="year-label" for="settlements-year">Рік:</label>
+        <select name="year" id="settlements-year" class="year" data-autosubmit aria-label="Рік">
+          {% for y in years %}<option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+        <noscript><button type="submit" class="btn">Показати</button></noscript>
+      </form>
+      <button type="button" class="btn" id="sync-btn">Синхронізувати</button>
+    </div>
+    {% if synced_at %}
+      <p class="sync-time">Останнє оновлення: {{ synced_at|date:"d.m.Y H:i" }}</p>
+    {% endif %}
+  </div>
+
+  {% if not accounts %}
+    {# No data yet or no key #}
+    <div class="settlements-empty" id="settlements-no-data">
+      <p id="settlements-hint">
+        {% if synced_at %}
+          За {{ year }} рік немає даних від кабінету ДПС.
+        {% else %}
+          Натисніть «Синхронізувати», щоб отримати дані з Електронного кабінету ДПС.
+        {% endif %}
+      </p>
+      <p class="settlements-no-key-hint" id="settlements-no-key-msg" hidden>
+        Спочатку <button type="button" class="link-btn" data-open-dialog="cabinet-dialog">додайте ключ КЕП у Кабінеті</button>.
+      </p>
+    </div>
+  {% else %}
+    <div class="account-cards" id="account-cards" data-selected="{{ selected.id|default:'' }}">
+      {% for acc in accounts %}
+        <button type="button"
+                class="account-card{% if acc == selected %} active{% endif %}{% if acc.total_balance_kopiykas is not None and acc.total_balance_kopiykas < 0 %} debt{% endif %}"
+                data-account-id="{{ acc.id }}"
+                data-url="{% url 'settlements' %}?year={{ year }}&account={{ acc.id }}">
+          <span class="account-card-name">{{ acc.payment_name }}</span>
+          <span class="account-card-balance">{{ acc.total_balance_kopiykas|money }}</span>
+        </button>
+      {% endfor %}
+    </div>
+
+    {% if selected %}
+      <div class="operations-block" id="operations-block">
+        <h3 class="operations-title">Операції: {{ selected.payment_name }}</h3>
+        {% with ops=operations %}
+          {% if ops %}
+            <div class="table-scroll">
+              <table class="ops-table">
+                <thead>
+                  <tr>
+                    <th>Дата</th>
+                    <th>Операція</th>
+                    <th class="num">Нараховано</th>
+                    <th class="num">Сплачено / повернуто</th>
+                    <th class="num">Сальдо</th>
+                    <th class="num">Пеня</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for op in ops %}
+                    <tr>
+                      <td>{{ op.operation_date|date:"d.m.Y" }}</td>
+                      <td>{{ op.operation_name }}</td>
+                      <td class="num{% if op.charged_kopiykas is None %} empty{% endif %}">{{ op.charged_kopiykas|money }}</td>
+                      <td class="num{% if op.paid_returned_kopiykas is None %} empty{% endif %}">{{ op.paid_returned_kopiykas|money }}</td>
+                      <td class="num{% if op.balance_kopiykas is None %} empty{% endif %}{% if op.balance_kopiykas is not None and op.balance_kopiykas < 0 %} neg{% endif %}">{{ op.balance_kopiykas|money }}</td>
+                      <td class="num{% if op.penalty_kopiykas is None %} empty{% endif %}{% if op.penalty_kopiykas is not None and op.penalty_kopiykas != 0 %} neg{% endif %}">{{ op.penalty_kopiykas|money }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="no-data">Операцій поки немає.</p>
+          {% endif %}
+        {% endwith %}
+      </div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block page_dialogs %}
+{# ── KЕП password dialog for sync ─────────────────── #}
+<dialog id="sync-password-dialog" aria-labelledby="sync-pwd-title">
+  <div class="dialog-body">
+    <h2 id="sync-pwd-title">Пароль ключа КЕП</h2>
+    <p class="sync-pwd-hint">Ключ підписує РНОКПП у браузері. Пароль на сервер не передається.</p>
+    <label class="field" style="margin-top:8px">
+      <span>Пароль</span>
+      <input type="password" id="sync-password" class="box" autocomplete="current-password">
+    </label>
+    <p id="sync-error" class="kep-add-error" hidden></p>
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" id="sync-cancel">Відміна</button>
+    <button type="button" class="btn" id="sync-sign-btn">Підписати і синхронізувати</button>
+  </div>
+</dialog>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+  window.SETTLEMENTS_SYNC_URL = "{% url 'settlements_sync' %}";
+  window.SETTLEMENTS_YEAR = {{ year }};
+  window.USER_RNOKPP = "{{ user.tax_number|escapejs }}";
+  window.CSRF_TOKEN = "{{ csrf_token }}";
+</script>
+<script src="{% static 'ledger/settlements.js' %}" defer></script>
+{% endblock %}

@@ -4,3 +4,5 @@ db.sqlite3
 staticfiles/
 __pycache__/
 *.pyc
+node_modules/
+ledger/static/ledger/jkurwa.bundle.js

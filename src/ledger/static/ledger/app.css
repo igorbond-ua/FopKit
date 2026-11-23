@@ -168,10 +168,143 @@ dialog::backdrop { background: rgba(26, 44, 61, 0.35); }
 .login-wrap { width: min(420px, calc(100% - 32px)); margin: 12vh auto; }
 .login-sheet .panel h2 { margin-bottom: 4px; }
 
+/* ── Navigation tabs ──────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 2px solid #c9d8e8;
+  margin-bottom: 16px;
+  padding: 0;
+}
+.tab {
+  display: inline-block;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4d657a;
+  text-decoration: none;
+  border-radius: 6px 6px 0 0;
+  border: 1px solid transparent;
+  border-bottom: none;
+  transition: background 0.1s, color 0.1s;
+  position: relative;
+  bottom: -2px;
+}
+.tab:hover { background: #e7f0f8; color: #2f5f8a; }
+.tab.active {
+  background: #f7fbfe;
+  color: #1a2c3d;
+  border-color: #c9d8e8;
+  border-bottom-color: #f7fbfe;
+}
+
+/* ── Settlements page ─────────────────────────────── */
+.settlements-panel { }
+.settlements-head { flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+.settlements-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.year-label { font-size: 13px; color: #5c7084; }
+.sync-time { margin: 0; font-size: 12px; color: #5c7084; }
+
+.account-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.account-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid #c9d8e8;
+  border-radius: 8px;
+  cursor: pointer;
+  min-width: 160px;
+  text-align: left;
+  transition: border-color 0.1s, box-shadow 0.1s;
+}
+.account-card:hover { border-color: #8fb0d0; box-shadow: 0 2px 6px rgba(26,44,61,0.08); }
+.account-card.active { border-color: #2f5f8a; background: #eef4fb; }
+.account-card-name { font-size: 11px; color: #5c7084; line-height: 1.3; }
+.account-card-balance {
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #1d6840;
+}
+.account-card.debt .account-card-balance { color: #a2382a; }
+
+.operations-block { margin-top: 4px; }
+.operations-title { margin: 0 0 10px; font-size: 14px; font-weight: 700; color: #3e5870; }
+.ops-table { margin-top: 0; }
+.neg { color: #a2382a; }
+
+.settlements-empty { padding: 24px 0 8px; }
+.settlements-empty p { margin: 0 0 8px; color: #5c7084; font-size: 14px; }
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #2f5f8a;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ── Sync password dialog ─────────────────────────── */
+.sync-pwd-hint { margin: 4px 0 0; font-size: 12px; color: #5c7084; }
+
+/* ── KEP section in cabinet ──────────────────────── */
+.kep-section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #d5e2ee;
+  grid-column: span 2;
+}
+.kep-heading { margin: 0 0 10px; font-size: 14px; font-weight: 700; }
+.kep-state { }
+.kep-status-text { margin: 0 0 10px; font-size: 13px; color: #5c7084; }
+.kep-info {
+  font-size: 13px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kep-info-row { color: #4d657a; }
+.kep-info-row strong { color: #1a2c3d; }
+.kep-info-row.warn strong { color: #a2382a; }
+
+.kep-preview {
+  margin: 10px 0;
+  padding: 10px 12px;
+  background: #e9f4ea;
+  border: 1px solid #b9d8bd;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #1d6840;
+}
+.kep-add-error {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  background: #fbefec;
+  border: 1px solid #e2b4ab;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #8a2f22;
+}
+
+/* ── Requisites page ─────────────────────────────── */
+.reqs-panel { }
+
 @media (max-width: 900px) {
   .desk { grid-template-columns: 1fr; }
   .reqs { grid-template-columns: 1fr; gap: 6px; }
   .top { flex-direction: column; align-items: flex-start; }
+  .account-cards { flex-direction: column; }
+  .account-card { min-width: auto; width: 100%; }
 }
 @media (max-width: 560px) {
   .wrap { width: calc(100% - 16px); margin: 8px auto 24px; }
@@ -179,4 +312,6 @@ dialog::backdrop { background: rgba(26, 44, 61, 0.35); }
   .session { flex-wrap: wrap; }
   .cabinet-grid { grid-template-columns: 1fr; }
   .span-2 { grid-column: auto; }
+  .tabs { overflow-x: auto; gap: 0; }
+  .tab { white-space: nowrap; padding: 8px 12px; font-size: 12px; }
 }

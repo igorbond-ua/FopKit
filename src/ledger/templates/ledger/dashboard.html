@@ -1,160 +1,122 @@
-{% extends "ledger/base.html" %}
+{% extends "ledger/page_base.html" %}
 {% load static ledger %}
-{% block title %}FopKit — {{ year }}{% endblock %}
+{% block page_title %}FopKit — {{ year }}{% endblock %}
 {% block body_attrs %}data-open-month="{{ open_month }}" data-open-dialog="{{ open_dialog }}" data-year="{{ year }}"{% endblock %}
-{% block body %}
-<div class="wrap">
-  <div class="sheet">
-    <div class="top">
-      <div class="brand">FOPKIT</div>
-      <div class="session">
-        <div class="who">{{ user.display_name }} · {{ tax_group }} група, без ПДВ · {{ year }}</div>
-        <button type="button" class="btn" data-open-dialog="cabinet-dialog">Кабінет</button>
-      </div>
+
+{% block page_content %}
+<div class="desk">
+  <div class="panel" id="monthly-panel">
+    <div class="panel-head">
+      <h2>Помісячно</h2>
+      <form method="get" action="{% url 'dashboard' %}">
+        <select name="year" class="year" data-autosubmit aria-label="Рік">
+          {% for y in years %}<option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+        <noscript><button type="submit" class="btn">Показати</button></noscript>
+      </form>
     </div>
-
-    {% if messages %}
-      <div class="flash">
-        {% for message in messages %}<p class="flash-{{ message.tags }}">{{ message }}</p>{% endfor %}
-      </div>
-    {% endif %}
-
-    <div class="desk">
-      <div class="panel" id="monthly-panel">
-        <div class="panel-head">
-          <h2>Помісячно</h2>
-          <form method="get" action="{% url 'dashboard' %}">
-            <select name="year" class="year" data-autosubmit aria-label="Рік">
-              {% for y in years %}<option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }}</option>{% endfor %}
-            </select>
-            <noscript><button type="submit" class="btn">Показати</button></noscript>
-          </form>
-        </div>
-        <form method="post" action="{% url 'skip_esv' %}">
-          {% csrf_token %}
-          <input type="hidden" name="year" value="{{ year }}">
-          <label class="check">
-            <input type="checkbox" name="skip_esv" value="1"{% if user.skip_esv %} checked{% endif %} data-autosubmit>
-            не розраховувати ЄСВ
-          </label>
-          <noscript><button type="submit" class="btn">Зберегти</button></noscript>
-        </form>
-        {% if not has_data %}<p class="no-data">нема даних</p>{% endif %}
-        <div class="table-scroll">
-          <table class="monthly">
-            <thead>
-              <tr>
-                <th>Місяць</th>
-                <th class="num">Сума в грн</th>
-                <th class="num">Єдиний податок</th>
-                <th class="num">Військовий збір</th>
-                <th class="num">ЄСВ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in rows %}
-                <tr class="{{ row.css }}">
-                  <td>{{ row.label }}</td>
-                  {% for cell in row.cells %}
-                    <td class="num{% if cell.value is None %} empty{% endif %}{% if cell.paid %} paid{% endif %}{% if cell.action %} clickable{% endif %}"
-                      {% if cell.action == "month" %}data-month="{{ row.month }}" tabindex="0" role="button" title="Операції місяця"{% elif cell.action == "toggle" %}data-toggle-url="{{ cell.toggle_url }}" data-paid="{{ cell.paid|yesno:'1,0' }}" tabindex="0" role="button" title="Позначка «виконано»"{% endif %}>{{ cell.value|money }}</td>
-                  {% endfor %}
-                </tr>
+    <form method="post" action="{% url 'skip_esv' %}">
+      {% csrf_token %}
+      <input type="hidden" name="year" value="{{ year }}">
+      <label class="check">
+        <input type="checkbox" name="skip_esv" value="1"{% if user.skip_esv %} checked{% endif %} data-autosubmit>
+        не розраховувати ЄСВ
+      </label>
+      <noscript><button type="submit" class="btn">Зберегти</button></noscript>
+    </form>
+    {% if not has_data %}<p class="no-data">нема даних</p>{% endif %}
+    <div class="table-scroll">
+      <table class="monthly">
+        <thead>
+          <tr>
+            <th>Місяць</th>
+            <th class="num">Сума в грн</th>
+            <th class="num">Єдиний податок</th>
+            <th class="num">Військовий збір</th>
+            <th class="num">ЄСВ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr class="{{ row.css }}">
+              <td>{{ row.label }}</td>
+              {% for cell in row.cells %}
+                <td class="num{% if cell.value is None %} empty{% endif %}{% if cell.paid %} paid{% endif %}{% if cell.action %} clickable{% endif %}"
+                    {% if cell.action == "month" %}data-month="{{ row.month }}" tabindex="0" role="button" title="Операції місяця"{% elif cell.action == "toggle" %}data-toggle-url="{{ cell.toggle_url }}" data-paid="{{ cell.paid|yesno:'1,0' }}" tabindex="0" role="button" title="Позначка «виконано»"{% endif %}>{{ cell.value|money }}</td>
               {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 
-      <div class="side">
-        <div class="panel">
-          <h2>Новий прибуток</h2>
-          <form method="post" action="{% url 'income_add' %}" class="income-form">
-            {% csrf_token %}
-            <input type="hidden" name="year" value="{{ year }}">
-            {% if income_form.non_field_errors %}
-              <ul class="errorlist">{% for error in income_form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
-            {% endif %}
-            <label class="field">
-              <span>Дата</span>
-              {{ income_form.received_on }}
-              {{ income_form.received_on.errors }}
-            </label>
-            <label class="field">
-              <span>Сума</span>
-              {{ income_form.amount }}
-              {{ income_form.amount.errors }}
-            </label>
-            <div class="field">
-              <span>Валюта</span>
-              <div class="chips">
-                {% for radio in income_form.currency %}
-                  <label class="chip">{{ radio.tag }}<span>{{ radio.choice_label }}</span></label>
-                {% endfor %}
-              </div>
-              {{ income_form.currency.errors }}
-            </div>
-            <button type="submit" class="btn add">Додати</button>
-          </form>
-        </div>
-
-        <div class="panel" id="recent-panel">
-          <h2>Останні записи</h2>
-          <div class="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Дата</th>
-                  <th class="num">Сума грн</th>
-                  <th>Валюта</th>
-                  <th class="num">Сума в валюті</th>
-                  <th class="num">Курс</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for entry in recent_entries %}
-                  <tr class="clickable" data-entry-id="{{ entry.id }}" tabindex="0" role="button" title="Редагувати">
-                    <td>{{ entry.received_on|date:"d.m.Y" }}</td>
-                    <td class="num">{{ entry.amount_uah_kopiykas|money }}</td>
-                    <td>{{ entry.get_currency_display }}</td>
-                    <td class="num{% if entry.amount_minor is None %} empty{% endif %}">{{ entry.amount_minor|money }}</td>
-                    <td class="num{% if entry.rate is None %} empty{% endif %}">{{ entry.rate|rate }}</td>
-                  </tr>
-                {% empty %}
-                  <tr><td colspan="5" class="empty">Записів поки немає</td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
+  <div class="side">
+    <div class="panel">
+      <h2>Новий прибуток</h2>
+      <form method="post" action="{% url 'income_add' %}" class="income-form">
+        {% csrf_token %}
+        <input type="hidden" name="year" value="{{ year }}">
+        {% if income_form.non_field_errors %}
+          <ul class="errorlist">{% for error in income_form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+        {% endif %}
+        <label class="field">
+          <span>Дата</span>
+          {{ income_form.received_on }}
+          {{ income_form.received_on.errors }}
+        </label>
+        <label class="field">
+          <span>Сума</span>
+          {{ income_form.amount }}
+          {{ income_form.amount.errors }}
+        </label>
+        <div class="field">
+          <span>Валюта</span>
+          <div class="chips">
+            {% for radio in income_form.currency %}
+              <label class="chip">{{ radio.tag }}<span>{{ radio.choice_label }}</span></label>
+            {% endfor %}
           </div>
+          {{ income_form.currency.errors }}
         </div>
-      </div>
+        <button type="submit" class="btn add">Додати</button>
+      </form>
     </div>
 
-    <div class="panel reqs-panel">
-      <div class="panel-head">
-        <h2>Реквізити для оплати</h2>
-        <form method="post" action="{% url 'refresh_requisites' %}">
-          {% csrf_token %}
-          <input type="hidden" name="year" value="{{ year }}">
-          <button type="submit" class="btn">Оновити реквізити</button>
-        </form>
+    <div class="panel" id="recent-panel">
+      <h2>Останні записи</h2>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Дата</th>
+              <th class="num">Сума грн</th>
+              <th>Валюта</th>
+              <th class="num">Сума в валюті</th>
+              <th class="num">Курс</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in recent_entries %}
+              <tr class="clickable" data-entry-id="{{ entry.id }}" tabindex="0" role="button" title="Редагувати">
+                <td>{{ entry.received_on|date:"d.m.Y" }}</td>
+                <td class="num">{{ entry.amount_uah_kopiykas|money }}</td>
+                <td>{{ entry.get_currency_display }}</td>
+                <td class="num{% if entry.amount_minor is None %} empty{% endif %}">{{ entry.amount_minor|money }}</td>
+                <td class="num{% if entry.rate is None %} empty{% endif %}">{{ entry.rate|rate }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" class="empty">Записів поки немає</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
-      <div class="reqs">
-        {% for slip in requisite_slips %}
-          {% include "ledger/requisites_slip.html" %}
-        {% endfor %}
-      </div>
-      {% with checked=requisite_slips.0.requisite %}
-        {% if checked %}
-          <p class="reqs-note">Перевірено {{ checked.checked_at|date:"d.m.Y H:i" }} на <a href="{{ checked.source_url }}" target="_blank" rel="noopener">сайті податкової</a>.</p>
-        {% else %}
-          <p class="reqs-note">Реквізити ще не завантажені. Вкажіть у кабінеті область і громаду, потім натисніть «Оновити реквізити».</p>
-        {% endif %}
-      {% endwith %}
     </div>
   </div>
 </div>
+{% endblock %}
 
+{% block page_dialogs %}
 <dialog id="month-dialog" class="wide" aria-labelledby="month-dialog-title">
   <div class="dialog-body">
     <h2 id="month-dialog-title">Операції місяця</h2>
@@ -228,44 +190,9 @@
     </div>
   </form>
 </dialog>
-
-<dialog id="cabinet-dialog" class="wide" aria-labelledby="cabinet-dialog-title">
-  <form method="post" action="{% url 'profile' %}" id="cabinet-form">
-    {% csrf_token %}
-    <input type="hidden" name="year" value="{{ year }}">
-    <div class="dialog-body">
-      <h2 id="cabinet-dialog-title">Кабінет</h2>
-      {% if profile_form.non_field_errors %}
-        <ul class="errorlist">{% for error in profile_form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
-      {% endif %}
-      <div class="cabinet-grid">
-        <div class="field"><span>Логін</span><div class="box readonly">{{ user.username }}</div></div>
-        <div class="field"><span>Група єдиного податку</span><div class="box readonly">{{ tax_group }}</div></div>
-        <div class="field"><span>Платник ПДВ</span><div class="box readonly">ні</div></div>
-        <div></div>
-        {% for field in profile_form %}
-          <label class="field{% if field.name == 'registration_address' or field.name == 'tax_office_name' %} span-2{% endif %}">
-            <span>{{ field.label }}</span>
-            {{ field }}
-            {% if field.help_text %}<small class="hint">{{ field.help_text }}</small>{% endif %}
-            {{ field.errors }}
-          </label>
-        {% endfor %}
-      </div>
-    </div>
-  </form>
-  <div class="dialog-foot split">
-    <form method="post" action="{% url 'logout' %}">
-      {% csrf_token %}
-      <button type="submit" class="btn secondary">Вийти</button>
-    </form>
-    <div class="dialog-actions">
-      <button type="button" class="btn secondary" data-close-dialog>Відміна</button>
-      <button type="submit" class="btn" form="cabinet-form">Зберегти і вийти</button>
-    </div>
-  </div>
-</dialog>
-
-{{ dialog_data|json_script:"dialog-data" }}
 {% endblock %}
-{% block scripts %}<script src="{% static 'ledger/app.js' %}" defer></script>{% endblock %}
+
+{% block page_scripts %}
+{{ dialog_data|json_script:"dialog-data" }}
+<script src="{% static 'ledger/dashboard.js' %}" defer></script>
+{% endblock %}

@@ -3,11 +3,12 @@ from django.db.models import Sum
 from django.urls import reverse
 from django.utils import timezone
 
-from . import nbu, requisites
-from .models import IncomeEntry, MonthRecord, PaymentRequisite
+from . import cabinet, nbu, requisites
+from .models import IncomeEntry, MonthRecord, PaymentRequisite, TaxSettlementAccount, TaxSettlementOperation
 from .money import convert_to_kopiykas, format_kopiykas, format_rate, input_kopiykas, percent_ceil
 
 FIRST_YEAR = 2026
+SETTLEMENT_FIRST_YEAR = 2012
 TAX_GROUP = 3
 SINGLE_TAX_PERCENT = 5
 MILITARY_LEVY_PERCENT = 1
@@ -249,6 +250,75 @@ def requisite_slips(user):
         }
         for kind in PaymentRequisite.Kind
     ]
+
+
+def settlement_years():
+    """List of years available in the settlement year picker (2012..current)."""
+    return list(range(SETTLEMENT_FIRST_YEAR, max(SETTLEMENT_FIRST_YEAR, today().year) + 1))
+
+
+def sync_settlements(user, authorization: str, year: int) -> None:
+    """
+    Fetch settlements from cabinet.tax.gov.ua and persist them.
+    Replaces all existing rows for this user+year with fresh data.
+    Raises cabinet.CabinetError / cabinet.SignatureExpiredError on failure.
+    """
+    now = timezone.now()
+    accounts_data = cabinet.fetch_settlements(authorization, year)
+
+    with transaction.atomic():
+        # Delete existing data for this year and re-create
+        TaxSettlementAccount.objects.filter(user=user, year=year).delete()
+
+        for acc in accounts_data:
+            account = TaxSettlementAccount.objects.create(
+                user=user,
+                year=year,
+                account_id=acc["account_id"],
+                tax_office_code=acc["tax_office_code"],
+                tax_office_name=acc["tax_office_name"],
+                payment_code=acc["payment_code"],
+                payment_name=acc["payment_name"],
+                charged_kopiykas=acc["charged"],
+                paid_kopiykas=acc["paid"],
+                returned_kopiykas=acc["returned"],
+                penalty_kopiykas=acc["penalty"],
+                arrears_kopiykas=acc["arrears"],
+                overpaid_kopiykas=acc["overpaid"],
+                penalty_balance_kopiykas=acc["penalty_balance"],
+                total_balance_kopiykas=acc["total_balance"],
+                budget_iban=acc["budget_iban"],
+                synced_at=now,
+            )
+            # Fetch first page of operations for each account
+            ops = cabinet.fetch_operations(
+                authorization, year, acc["tax_office_code"], acc["account_id"], page=0
+            )
+            TaxSettlementOperation.objects.bulk_create([
+                TaxSettlementOperation(
+                    account=account,
+                    operation_date=op["operation_date"],
+                    operation_code=op["operation_code"],
+                    operation_name=op["operation_name"],
+                    amount_kopiykas=op["amount"],
+                    charged_kopiykas=op["charged"],
+                    paid_returned_kopiykas=op["paid_returned"],
+                    balance_kopiykas=op["balance"],
+                    penalty_kopiykas=op["penalty"],
+                    penalty_balance_kopiykas=op["penalty_balance"],
+                )
+                for op in ops
+                if op["operation_date"] is not None
+            ])
+
+
+def get_settlements(user, year: int):
+    """Return list of TaxSettlementAccount objects with prefetched operations."""
+    return list(
+        TaxSettlementAccount.objects.filter(user=user, year=year)
+        .prefetch_related("operations")
+        .order_by("payment_code", "id")
+    )
 
 
 def dialog_data(year_entries, recent_entries):

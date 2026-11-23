@@ -6,7 +6,7 @@
 <title>{% block title %}FopKit{% endblock %}</title>
 <link rel="stylesheet" href="{% static 'ledger/app.css' %}">
 </head>
-<body {% block body_attrs %}{% endblock %}>
+<body {% block body_attrs %}{% endblock %}{% if user.is_authenticated %} data-user-id="{{ user.id }}"{% endif %}>
 {% block body %}{% endblock %}
 {% block scripts %}{% endblock %}
 </body>

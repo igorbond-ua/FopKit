@@ -1,0 +1,134 @@
+{% extends "ledger/base.html" %}
+{% load static %}
+{% block title %}{% block page_title %}FopKit{% endblock %}{% endblock %}
+{% block body_attrs %}data-open-dialog="{{ open_dialog|default:'' }}"{% endblock %}
+{% block body %}
+<div class="wrap">
+  <div class="sheet">
+
+    <div class="top">
+      <div class="brand">FOPKIT</div>
+      <div class="session">
+        <div class="who">{{ user.display_name }} · {{ tax_group }} група, без ПДВ</div>
+        <button type="button" class="btn" data-open-dialog="cabinet-dialog">Кабінет</button>
+      </div>
+    </div>
+
+    <nav class="tabs" aria-label="Розділи">
+      <a href="{% url 'dashboard' %}" class="tab{% if active_tab == 'dashboard' %} active{% endif %}">Облік</a>
+      <a href="{% url 'settlements' %}" class="tab{% if active_tab == 'settlements' %} active{% endif %}">Розрахунки з бюджетом</a>
+      <a href="{% url 'requisites' %}" class="tab{% if active_tab == 'requisites' %} active{% endif %}">Реквізити</a>
+    </nav>
+
+    {% if messages %}
+      <div class="flash">
+        {% for message in messages %}<p class="flash-{{ message.tags }}">{{ message }}</p>{% endfor %}
+      </div>
+    {% endif %}
+
+    {% block page_content %}{% endblock %}
+
+  </div>
+</div>
+
+{# ── Cabinet dialog ──────────────────────────────────── #}
+<dialog id="cabinet-dialog" class="wide" aria-labelledby="cabinet-dialog-title">
+  <form method="post" action="{% url 'profile' %}" id="cabinet-form">
+    {% csrf_token %}
+    <input type="hidden" name="year" value="{{ year|default:'' }}">
+    <div class="dialog-body">
+      <h2 id="cabinet-dialog-title">Кабінет</h2>
+      {% if profile_form.non_field_errors %}
+        <ul class="errorlist">{% for error in profile_form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+      {% endif %}
+      <div class="cabinet-grid">
+        <div class="field"><span>Логін</span><div class="box readonly">{{ user.username }}</div></div>
+        <div class="field"><span>Група єдиного податку</span><div class="box readonly">{{ tax_group }}</div></div>
+        <div class="field"><span>Платник ПДВ</span><div class="box readonly">ні</div></div>
+        <div></div>
+        {% for field in profile_form %}
+          <label class="field{% if field.name == 'registration_address' or field.name == 'tax_office_name' %} span-2{% endif %}">
+            <span>{{ field.label }}</span>
+            {{ field }}
+            {% if field.help_text %}<small class="hint">{{ field.help_text }}</small>{% endif %}
+            {{ field.errors }}
+          </label>
+        {% endfor %}
+      </div>
+
+      {# ── KEP section ──────────────────────────────── #}
+      <div class="kep-section" id="kep-section">
+        <h3 class="kep-heading">Ключ КЕП</h3>
+        <div id="kep-no-key" class="kep-state" hidden>
+          <p class="kep-status-text">Ключ КЕП не додано</p>
+          <button type="button" class="btn" id="kep-add-btn">Додати ключ</button>
+        </div>
+        <div id="kep-has-key" class="kep-state" hidden>
+          <div class="kep-info" id="kep-info"></div>
+          <button type="button" class="btn danger" id="kep-delete-btn">Видалити ключ</button>
+        </div>
+        <div id="kep-loading" class="kep-state">
+          <p class="kep-status-text">…</p>
+        </div>
+      </div>
+
+    </div>
+  </form>
+  <div class="dialog-foot split">
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn secondary">Вийти</button>
+    </form>
+    <div class="dialog-actions">
+      <button type="button" class="btn secondary" data-close-dialog>Відміна</button>
+      <button type="submit" class="btn" form="cabinet-form">Зберегти і вийти</button>
+    </div>
+  </div>
+</dialog>
+
+{# ── Add-key dialog ──────────────────────────────────── #}
+<dialog id="add-key-dialog" aria-labelledby="add-key-dialog-title">
+  <div class="dialog-body">
+    <h2 id="add-key-dialog-title">Додати ключ КЕП</h2>
+    <div class="field" style="margin-top:8px">
+      <span>Файл ключа (Key-6.dat, .jks, .pfx)</span>
+      <input type="file" id="kep-key-file" class="box" accept=".dat,.jks,.pfx,.p12" required>
+    </div>
+    <div class="field" id="kep-cert-field" hidden>
+      <span>Файл сертифіката (.cer) — потрібен для Key-6.dat</span>
+      <input type="file" id="kep-cert-file" class="box" accept=".cer,.crt,.pem">
+    </div>
+    <label class="field">
+      <span>Пароль ключа</span>
+      <input type="password" id="kep-password" class="box" autocomplete="current-password" required>
+    </label>
+    <div id="kep-preview" class="kep-preview" hidden></div>
+    <p id="kep-add-error" class="kep-add-error" hidden></p>
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" id="kep-add-cancel">Відміна</button>
+    <button type="button" class="btn" id="kep-load-btn">Завантажити ключ</button>
+    <button type="button" class="btn" id="kep-save-btn" hidden>Зберегти ключ</button>
+  </div>
+</dialog>
+
+{# ── Confirm-delete-key dialog ──────────────────────── #}
+<dialog id="confirm-delete-key-dialog" aria-labelledby="confirm-delete-key-text">
+  <div class="dialog-body">
+    <p id="confirm-delete-key-text" class="confirm-text">Видалити ключ КЕП з цього браузера?</p>
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" data-close-dialog>Ні</button>
+    <button type="button" class="btn danger" id="kep-confirm-delete-btn">Так, видалити</button>
+  </div>
+</dialog>
+
+{% block page_dialogs %}{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'ledger/jkurwa.bundle.js' %}" defer></script>
+<script src="{% static 'ledger/kep.js' %}" defer></script>
+<script src="{% static 'ledger/app.js' %}" defer></script>
+{% block page_scripts %}{% endblock %}
+{% endblock %}
+{% endblock %}

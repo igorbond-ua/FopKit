@@ -1,18 +1,31 @@
+import json
+import logging
+
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import urlencode
 from django.views.decorators.http import require_POST
 
-from . import nbu, requisites, services
+from . import cabinet, nbu, requisites, services
 from .forms import IncomeForm, ProfileForm
 from .models import IncomeEntry, MonthRecord
 
+logger = logging.getLogger(__name__)
+
 RECENT_LIMIT = 40
 RATE_ERROR = "Не вдалося отримати курс НБУ. Спробуйте ще раз трохи пізніше."
+
+
+def _base_context(request):
+    """Context shared by all pages that extend page_base.html."""
+    return {
+        "profile_form": ProfileForm(instance=request.user),
+        "tax_group": services.TAX_GROUP,
+    }
 
 
 def _int_or_none(value):
@@ -46,6 +59,8 @@ def render_dashboard(request, year, *, income_form=None, profile_form=None, open
     year_entries = list(IncomeEntry.objects.filter(user=user, received_on__year=year))
     recent_entries = list(IncomeEntry.objects.filter(user=user)[:RECENT_LIMIT])
     context = {
+        **_base_context(request),
+        "active_tab": "dashboard",
         "year": year,
         "years": services.available_years(),
         "rows": rows,
@@ -53,12 +68,10 @@ def render_dashboard(request, year, *, income_form=None, profile_form=None, open
         "recent_entries": recent_entries,
         "income_form": income_form or IncomeForm(initial={"received_on": services.today()}),
         "profile_form": profile_form or ProfileForm(instance=user),
-        "tax_group": services.TAX_GROUP,
         "dialog_data": services.dialog_data(year_entries, recent_entries),
         "currencies": IncomeEntry.Currency.choices,
         "open_dialog": open_dialog,
         "open_month": open_month or "",
-        "requisite_slips": services.requisite_slips(user),
     }
     return render(request, "ledger/dashboard.html", context, status=status)
 
@@ -142,22 +155,23 @@ def skip_esv(request):
 @login_required
 @require_POST
 def profile(request):
-    year = _valid_year(request.POST.get("year"))
+    # After saving profile, always go to dashboard (cabinet can be opened from any page)
     form = ProfileForm(request.POST, instance=request.user)
     if form.is_valid():
         user = form.save()
         if form.cleaned_data["new_password"]:
             update_session_auth_hash(request, user)
         messages.success(request, "Дані кабінету збережено.")
-        return redirect(dashboard_url(year))
+        return redirect(dashboard_url(services.today().year))
     request.user.refresh_from_db()
+    year = _valid_year(request.POST.get("year"))
     return render_dashboard(request, year, profile_form=form, open_dialog="cabinet", status=400)
 
 
 @login_required
 @require_POST
 def refresh_requisites(request):
-    url = dashboard_url(_valid_year(request.POST.get("year")))
+    url = reverse("requisites")
     user = request.user
     if not user.tax_region or not user.community.strip():
         messages.error(request, "Щоб оновити реквізити, вкажіть у кабінеті область обліку і територіальну громаду.")
@@ -173,3 +187,77 @@ def refresh_requisites(request):
     else:
         messages.success(request, "Реквізити перевірено на сайті податкової. Змін немає.")
     return redirect(url)
+
+
+@login_required
+def requisites_page(request):
+    context = {
+        **_base_context(request),
+        "active_tab": "requisites",
+        "requisite_slips": services.requisite_slips(request.user),
+    }
+    return render(request, "ledger/requisites.html", context)
+
+
+@login_required
+def settlements(request):
+    year = _valid_settlement_year(request.GET.get("year"))
+    accounts = services.get_settlements(request.user, year)
+    selected_id = _int_or_none(request.GET.get("account"))
+    # Default: select the first account
+    selected = None
+    if accounts:
+        selected = next((a for a in accounts if a.id == selected_id), accounts[0])
+    synced_at = selected.synced_at if selected else None
+    context = {
+        **_base_context(request),
+        "active_tab": "settlements",
+        "year": year,
+        "years": services.settlement_years(),
+        "accounts": accounts,
+        "selected": selected,
+        "operations": list(selected.operations.all()) if selected else [],
+        "synced_at": synced_at,
+    }
+    return render(request, "ledger/settlements.html", context)
+
+
+def _valid_settlement_year(value):
+    year = _int_or_none(value)
+    years = services.settlement_years()
+    return year if year in years else services.today().year
+
+
+@login_required
+@require_POST
+def settlements_sync(request):
+    """
+    Accept a Base64-encoded CAdES signature from the browser,
+    use it to fetch settlement data from cabinet.tax.gov.ua, and persist it.
+
+    Expected JSON body: {"authorization": "<Base64 string>", "year": 2026}
+    """
+    try:
+        body = json.loads(request.body)
+        authorization = body.get("authorization", "").strip()
+        year = int(body.get("year", services.today().year))
+    except Exception:
+        return JsonResponse({"error": "Невірний формат запиту."}, status=400)
+
+    if not authorization:
+        return JsonResponse({"error": "Підпис відсутній."}, status=400)
+
+    year = year if year in services.settlement_years() else services.today().year
+
+    try:
+        services.sync_settlements(request.user, authorization, year)
+    except cabinet.SignatureExpiredError:
+        return JsonResponse(
+            {"error": "Час підпису вичерпано. Натисніть «Синхронізувати» ще раз."},
+            status=401,
+        )
+    except cabinet.CabinetError as exc:
+        logger.warning("Cabinet sync failed for user %s: %s", request.user.pk, exc)
+        return JsonResponse({"error": str(exc)}, status=502)
+
+    return JsonResponse({"ok": True, "redirect": f"{reverse('settlements')}?year={year}"})

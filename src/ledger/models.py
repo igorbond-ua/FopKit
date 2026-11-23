@@ -83,6 +83,56 @@ class MonthRecord(models.Model):
         )
 
 
+class TaxSettlementAccount(models.Model):
+    """Зведення за одним бюджетним рахунком за рік — з API /ta/splatp."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="settlement_accounts")
+    year = models.PositiveSmallIntegerField()
+    account_id = models.CharField(max_length=64)
+    tax_office_code = models.IntegerField()
+    tax_office_name = models.CharField(max_length=300)
+    payment_code = models.BigIntegerField()
+    payment_name = models.CharField(max_length=500)
+    charged_kopiykas = models.BigIntegerField(null=True, blank=True)
+    paid_kopiykas = models.BigIntegerField(null=True, blank=True)
+    returned_kopiykas = models.BigIntegerField(null=True, blank=True)
+    penalty_kopiykas = models.BigIntegerField(null=True, blank=True)
+    arrears_kopiykas = models.BigIntegerField(null=True, blank=True)
+    overpaid_kopiykas = models.BigIntegerField(null=True, blank=True)
+    penalty_balance_kopiykas = models.BigIntegerField(null=True, blank=True)
+    total_balance_kopiykas = models.BigIntegerField(null=True, blank=True)
+    budget_iban = models.CharField(max_length=34, blank=True)
+    synced_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "tax_settlement_accounts"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "year", "account_id"],
+                name="settlement_account_per_user_year_id",
+            )
+        ]
+
+
+class TaxSettlementOperation(models.Model):
+    """Одна операція з особового рахунку — з API /ta/splatp/{year}/{cSti}/{id}/pa."""
+
+    account = models.ForeignKey(TaxSettlementAccount, on_delete=models.CASCADE, related_name="operations")
+    operation_date = models.DateField()
+    operation_code = models.CharField(max_length=20, blank=True)
+    operation_name = models.CharField(max_length=500)
+    amount_kopiykas = models.BigIntegerField(null=True, blank=True)
+    charged_kopiykas = models.BigIntegerField(null=True, blank=True)
+    paid_returned_kopiykas = models.BigIntegerField(null=True, blank=True)
+    balance_kopiykas = models.BigIntegerField(null=True, blank=True)
+    penalty_kopiykas = models.BigIntegerField(null=True, blank=True)
+    penalty_balance_kopiykas = models.BigIntegerField(null=True, blank=True)
+
+    class Meta:
+        db_table = "tax_settlement_operations"
+        ordering = ["operation_date", "id"]
+
+
 class PaymentRequisite(models.Model):
     class Kind(models.TextChoices):
         SINGLE_TAX = "single_tax", "ЄП"
