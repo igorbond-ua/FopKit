@@ -129,22 +129,37 @@
    * Returns: Promise<{ owner_name, tax_number, valid_from, valid_until, issuer }>
    * Throws: Error("WRONG_PASSWORD") | Error("LIBRARY_NOT_LOADED") | Error(message)
    */
+  function _buildBox(keyBytes, certBytes, password) {
+    var lib = getLib();
+    var box = new lib.jk.Box({ algo: lib.algo });
+    var keyBuf = bufferFromStore(keyBytes);
+
+    // Load private key
+    box.load({ keyBuffers: [keyBuf], password: password || "" });
+
+    // JKS files pack certs as separate trusted entries in the same file —
+    // loading the same buffer as certBuffers extracts them and links to the key.
+    box.load({ certBuffers: [keyBuf] });
+
+    // Load accompanying certificate if provided separately (Key-6.dat case)
+    if (certBytes) {
+      box.load({ certBuffers: [bufferFromStore(certBytes)] });
+    }
+
+    return box;
+  }
+
   function loadKeyMeta(keyBytes, certBytes, password) {
     return Promise.resolve().then(function () {
-      var lib = getLib();
-      var box = new lib.jk.Box({ algo: lib.algo });
-
-      // Load private key (may be encrypted JKS / Key-6.dat / PKCS#12 / PEM)
-      box.load({ keyBuffers: [bufferFromStore(keyBytes)], password: password || "" });
-
-      // Load accompanying certificate if provided separately (Key-6.dat case)
-      if (certBytes) {
-        box.load({ certBuffers: [bufferFromStore(certBytes)] });
-      }
+      var box = _buildBox(keyBytes, certBytes, password);
 
       // Find the first key that has an associated certificate
       var keyPair = box.keys.filter(function (k) { return k.cert; })[0];
-      if (!keyPair) throw new Error("Не знайдено сертифікат у ключовому файлі.");
+      if (!keyPair) {
+        // Fallback: check if any certs were loaded even without a key pair
+        // (should not happen in normal JKS, but guard anyway)
+        throw new Error("Не знайдено сертифікат у ключовому файлі. Спробуйте вказати окремий файл сертифіката (.cer).");
+      }
 
       var cert = keyPair.cert;
       var subj = cert.subject || {};
@@ -159,7 +174,6 @@
         issuer: issuer.commonName || issuer.organizationName || "",
       };
     }).catch(function (err) {
-      // Map generic decryption errors to WRONG_PASSWORD so the UI shows the right message
       var msg = (err && err.message) || String(err);
       if (/password|пароль|decrypt|mac|hmac|wrong/i.test(msg)) {
         throw new Error("WRONG_PASSWORD");
@@ -181,13 +195,8 @@
     return getKeyRecord(user_id).then(function (record) {
       if (!record) throw new Error("NO_KEY");
 
-      var lib = getLib();
-      var box = new lib.jk.Box({ algo: lib.algo });
-
-      box.load({ keyBuffers: [bufferFromStore(record.key_bytes)], password: password || "" });
-      if (record.cert_bytes) {
-        box.load({ certBuffers: [bufferFromStore(record.cert_bytes)] });
-      }
+      getLib(); // ensure library is loaded
+      var box = _buildBox(record.key_bytes, record.cert_bytes || null, password);
 
       var data = new TextEncoder().encode(rnokpp);
 
