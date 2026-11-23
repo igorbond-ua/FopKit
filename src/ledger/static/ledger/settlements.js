@@ -1,14 +1,13 @@
 (function () {
   "use strict";
 
-  // Values injected by the template
-  var syncUrl  = window.SETTLEMENTS_SYNC_URL;
-  var year     = window.SETTLEMENTS_YEAR;
-  var rnokpp   = window.USER_RNOKPP;
-  var csrf     = window.CSRF_TOKEN;
-  // User ID injected from base; we read it from a hidden element in the page.
-  // page_base.html sets data-user-id on the body.
-  var userId   = document.body.dataset.userId || "";
+  // Values read from data-* attributes on <body> (set by the settlements template).
+  // This avoids inline <script> tags which would be blocked by our CSP.
+  var syncUrl  = document.body.dataset.syncUrl  || "";
+  var year     = Number(document.body.dataset.year) || 0;
+  var rnokpp   = document.body.dataset.rnokpp   || "";
+  var csrf     = document.body.dataset.csrf     || "";
+  var userId   = document.body.dataset.userId   || "";
 
   // ── Account card switching ──────────────────────────────────────────
 
