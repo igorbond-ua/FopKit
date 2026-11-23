@@ -29,6 +29,11 @@ esbuild
       "ledger",
       "jkurwa.bundle.js"
     ),
+    // Replace Node.js globals that some deps reference in browser context
+    define: {
+      "global": "globalThis",
+      "process.env.NODE_ENV": '"production"',
+    },
     minify: true,
     logLevel: "info",
   })
