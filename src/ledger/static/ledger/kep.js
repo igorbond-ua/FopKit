@@ -105,12 +105,11 @@
   }
 
   // ── jkurwa helpers ────────────────────────────────────────────────────
-  // jkurwa.bundle.js is loaded before this file and exposes window.jkurwaLib.
-  // { jk, algo } = window.jkurwaLib
+  // jkurwa.bundle.js sets globalThis.jkurwaLib = { jk, algo }.
 
   function getLib() {
-    if (!window.jkurwaLib) throw new Error("LIBRARY_NOT_LOADED");
-    return window.jkurwaLib;
+    if (!globalThis.jkurwaLib) throw new Error("LIBRARY_NOT_LOADED");
+    return globalThis.jkurwaLib;
   }
 
   function bufferFromStore(val) {
@@ -180,43 +179,75 @@
 
   /**
    * Sign `rnokpp` (string) with the stored key.
+   * Runs in a Web Worker to avoid freezing the browser UI.
+   *
    * Returns: Promise<string>  — Base64-encoded DER of a CAdES-BES SignedData
    * Throws: Error("WRONG_PASSWORD") | Error("NO_KEY") | Error("LIBRARY_NOT_LOADED")
-   *
-   * cabinet.tax.gov.ua expects: Base64( CMS SignedData ) as the Authorization header value.
-   * The container must include the signer certificate (CAdES-BES).
-   * A timestamp (TSP) is NOT required by the cabinet API — tsp: false keeps it offline.
    */
-  function signRnokpp(user_id, password, rnokpp) {
+  function signRnokpp(user_id, password, rnokpp, timestamp) {
     return getKeyRecord(user_id).then(function (record) {
       if (!record) throw new Error("NO_KEY");
+      if (!globalThis.jkurwaLib) throw new Error("LIBRARY_NOT_LOADED");
+      timestamp = timestamp || Date.now();
 
-      getLib(); // ensure library is loaded
-      var box = _buildBox(record.key_bytes, record.cert_bytes || null, password);
+      return new Promise(function (resolve, reject) {
+        // Resolve the worker script URL from the already-loaded bundle script tag.
+        var bundleScript = document.querySelector('script[src*="jkurwa.bundle.js"]');
+        var workerScript = document.querySelector('script[src*="kep_worker.js"]');
+        if (!bundleScript || !workerScript) {
+          reject(new Error("LIBRARY_NOT_LOADED"));
+          return;
+        }
+        var bundleUrl = bundleScript.src;
+        var workerUrl = workerScript.src;
 
-      var data = new TextEncoder().encode(rnokpp);
+        var worker = new Worker(workerUrl);
 
-      // box.pipe returns a Buffer (Uint8Array-compatible) containing the DER-encoded CMS blob
-      return box.pipe(
-        data,
-        [{ op: "sign", time: new Date() }],
-        { tsp: false, includeChain: false }
-      );
-    }).then(function (signedBuffer) {
-      // Convert to Base64
-      var bytes = new Uint8Array(signedBuffer);
-      var binary = "";
-      for (var i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      return btoa(binary);
-    }).catch(function (err) {
-      var msg = (err && err.message) || String(err);
-      if (msg === "NO_KEY" || msg === "LIBRARY_NOT_LOADED") throw err;
-      if (/password|пароль|decrypt|mac|hmac|wrong/i.test(msg)) {
-        throw new Error("WRONG_PASSWORD");
-      }
-      throw err;
+        worker.onmessage = function (e) {
+          var msg = e.data;
+          if (msg.type === "ready") {
+            // Worker loaded the bundle — now send the signing request.
+            // Transfer ArrayBuffers for zero-copy (key bytes can be large).
+            var keyBytes = record.key_bytes instanceof ArrayBuffer
+              ? record.key_bytes.slice(0) : new Uint8Array(record.key_bytes).buffer.slice(0);
+            var certBytes = record.cert_bytes
+              ? (record.cert_bytes instanceof ArrayBuffer
+                  ? record.cert_bytes.slice(0)
+                  : new Uint8Array(record.cert_bytes).buffer.slice(0))
+              : null;
+
+            var msg2 = { type: "sign", keyBytes: keyBytes, certBytes: certBytes,
+                         password: password, rnokpp: rnokpp, timestamp: timestamp,
+                         tspUrl: document.body.dataset.tspUrl || "",
+                         csrf: document.body.dataset.csrf || "" };
+            var transfers = [keyBytes];
+            if (certBytes) transfers.push(certBytes);
+            worker.postMessage(msg2, transfers);
+            return;
+          }
+          if (msg.type === "result") {
+            worker.terminate();
+            resolve({ username: msg.username, password: msg.password });
+            return;
+          }
+          if (msg.type === "error") {
+            worker.terminate();
+            var code = msg.code || "SIGN_ERROR";
+            if (code === "WRONG_PASSWORD") reject(new Error("WRONG_PASSWORD"));
+            else if (code === "LIBRARY_NOT_LOADED") reject(new Error("LIBRARY_NOT_LOADED"));
+            else reject(new Error(msg.message || code));
+            return;
+          }
+        };
+
+        worker.onerror = function (err) {
+          worker.terminate();
+          reject(new Error(err.message || "Worker error"));
+        };
+
+        // Send init message with the bundle URL so the worker loads it.
+        worker.postMessage({ type: "init", bundleUrl: bundleUrl });
+      });
     });
   }
 

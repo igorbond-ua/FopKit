@@ -1,5 +1,9 @@
+import base64
 import json
 import logging
+from urllib.parse import urlparse
+
+import requests
 
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
@@ -232,32 +236,75 @@ def _valid_settlement_year(value):
 @require_POST
 def settlements_sync(request):
     """
-    Accept a Base64-encoded CAdES signature from the browser,
-    use it to fetch settlement data from cabinet.tax.gov.ua, and persist it.
+    Accept the signed OAuth2 credentials from the browser,
+    exchange them for a Bearer token, fetch settlement data, and persist it.
 
-    Expected JSON body: {"authorization": "<Base64 string>", "year": 2026}
+    Expected JSON body:
+      {
+        "username": "{РНОКПП}-{РНОКПП}-{timestamp_ms}",
+        "password": "<Base64 CAdES signature of the РНОКПП>",
+        "year": 2026
+      }
     """
     try:
         body = json.loads(request.body)
-        authorization = body.get("authorization", "").strip()
+        kep_username = body.get("username", "").strip()
+        kep_password = body.get("password", "").strip()
         year = int(body.get("year", services.today().year))
     except Exception:
         return JsonResponse({"error": "Невірний формат запиту."}, status=400)
 
-    if not authorization:
+    if not kep_username or not kep_password:
         return JsonResponse({"error": "Підпис відсутній."}, status=400)
 
     year = year if year in services.settlement_years() else services.today().year
 
     try:
-        services.sync_settlements(request.user, authorization, year)
-    except cabinet.SignatureExpiredError:
-        return JsonResponse(
-            {"error": "Час підпису вичерпано. Натисніть «Синхронізувати» ще раз."},
-            status=401,
-        )
+        services.sync_settlements(request.user, kep_username, kep_password, year)
+    except cabinet.SignatureExpiredError as exc:
+        return JsonResponse({"error": str(exc)}, status=401)
     except cabinet.CabinetError as exc:
         logger.warning("Cabinet sync failed for user %s: %s", request.user.pk, exc)
         return JsonResponse({"error": str(exc)}, status=502)
+    except Exception as exc:
+        logger.exception("Settlements sync crashed for user %s", request.user.pk)
+        return JsonResponse(
+            {"error": f"Не вдалося обробити дані кабінету: {type(exc).__name__}: {exc}"},
+            status=500,
+        )
 
     return JsonResponse({"ok": True, "redirect": f"{reverse('settlements')}?year={year}"})
+
+
+
+TSP_HOSTS = ("acsk.privatbank.ua",)
+
+
+@login_required
+@require_POST
+def kep_tsp(request):
+    """
+    Forward an RFC 3161 time-stamp request to the key issuer's TSP server.
+
+    The signing Worker runs on our origin and cannot reach plain-http TSP servers.
+    Body: {"url": "<tsp url from the certificate>", "data": "<base64 DER request>"}
+    """
+    try:
+        body = json.loads(request.body)
+        url = body["url"]
+        payload = base64.b64decode(body["data"])
+    except (ValueError, KeyError, TypeError):
+        return JsonResponse({"error": "Невірний формат запиту."}, status=400)
+
+    if urlparse(url).hostname not in TSP_HOSTS:
+        return JsonResponse({"error": "Сервер позначок часу не підтримується."}, status=400)
+
+    try:
+        resp = requests.post(
+            url, data=payload, headers={"Content-Type": "application/tsp-request"}, timeout=10
+        )
+        resp.raise_for_status()
+    except requests.RequestException as exc:
+        return JsonResponse({"error": f"Сервер позначок часу недоступний: {exc}"}, status=502)
+
+    return JsonResponse({"data": base64.b64encode(resp.content).decode()})

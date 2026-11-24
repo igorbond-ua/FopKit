@@ -21,4 +21,5 @@ urlpatterns = [
     path("requisites/refresh/", views.refresh_requisites, name="refresh_requisites"),
     path("settlements/", views.settlements, name="settlements"),
     path("settlements/sync/", views.settlements_sync, name="settlements_sync"),
+    path("kep/tsp/", views.kep_tsp, name="kep_tsp"),
 ]

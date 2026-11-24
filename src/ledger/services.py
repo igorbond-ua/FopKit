@@ -257,14 +257,19 @@ def settlement_years():
     return list(range(SETTLEMENT_FIRST_YEAR, max(SETTLEMENT_FIRST_YEAR, today().year) + 1))
 
 
-def sync_settlements(user, authorization: str, year: int) -> None:
+def sync_settlements(user, kep_username: str, kep_password: str, year: int) -> None:
     """
     Fetch settlements from cabinet.tax.gov.ua and persist them.
     Replaces all existing rows for this user+year with fresh data.
+
+    kep_username = "{РНОКПП}-{РНОКПП}-{timestamp_ms}"
+    kep_password = Base64-encoded CAdES signature of the РНОКПП
+
     Raises cabinet.CabinetError / cabinet.SignatureExpiredError on failure.
     """
     now = timezone.now()
-    accounts_data = cabinet.fetch_settlements(authorization, year)
+    access_token = cabinet.get_token(kep_username, kep_password)
+    accounts_data = cabinet.fetch_settlements(access_token, year)
 
     with transaction.atomic():
         # Delete existing data for this year and re-create
@@ -292,7 +297,7 @@ def sync_settlements(user, authorization: str, year: int) -> None:
             )
             # Fetch first page of operations for each account
             ops = cabinet.fetch_operations(
-                authorization, year, acc["tax_office_code"], acc["account_id"], page=0
+                access_token, year, acc["tax_office_code"], acc["account_id"], page=0
             )
             TaxSettlementOperation.objects.bulk_create([
                 TaxSettlementOperation(

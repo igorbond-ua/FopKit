@@ -26,6 +26,8 @@ class SecurityHeadersMiddleware:
             "img-src 'self' data:",
             "font-src 'self'",
             "connect-src 'self'",
+            # Web Worker for KEP signing (kep_worker.js + jkurwa.bundle.js)
+            "worker-src 'self'",
             "frame-ancestors 'none'",
             "form-action 'self'",
             "base-uri 'self'",

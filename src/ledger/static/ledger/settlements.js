@@ -1,6 +1,12 @@
 (function () {
   "use strict";
 
+  // The script can be evaluated twice (a second copy shows up as "VM… settlements.js").
+  // Each sync logs in to the cabinet, and a second login revokes the first token,
+  // so bind the handlers only once. The flag lives on the DOM, which both copies share.
+  if (document.body.dataset.settlementsBound) return;
+  document.body.dataset.settlementsBound = "1";
+
   // Values read from data-* attributes on <body> (set by the settlements template).
   // This avoids inline <script> tags which would be blocked by our CSP.
   var syncUrl  = document.body.dataset.syncUrl  || "";
@@ -71,22 +77,30 @@
         var password = syncPwd ? syncPwd.value : "";
         if (!password) { showSyncError("Введіть пароль ключа."); return; }
 
+        if (!rnokpp) {
+          showSyncError("Заповніть РНОКПП у профілі перед синхронізацією.");
+          return;
+        }
+
         setSignBtnBusy(true);
 
-        kepStore.signRnokpp(userId, password, rnokpp)
-          .then(function (authorization) {
+        var timestamp = Date.now();
+        kepStore.signRnokpp(userId, password, rnokpp, timestamp)
+          .then(function (result) {
             return fetch(syncUrl, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
                 "X-CSRFToken": csrf,
               },
-              body: JSON.stringify({ authorization: authorization, year: year }),
+              body: JSON.stringify({ username: result.username, password: result.password, year: year }),
             });
           })
           .then(function (resp) {
             return resp.json().then(function (data) {
               return { ok: resp.ok, data: data };
+            }, function () {
+              return { ok: false, data: { error: "Помилка сервера FopKit (HTTP " + resp.status + ")." } };
             });
           })
           .then(function (result) {

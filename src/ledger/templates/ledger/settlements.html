@@ -1,7 +1,7 @@
 {% extends "ledger/page_base.html" %}
 {% load static ledger %}
 {% block page_title %}FopKit — Розрахунки з бюджетом{% endblock %}
-{% block body_attrs %}data-open-dialog="" data-sync-url="{% url 'settlements_sync' %}" data-year="{{ year }}" data-rnokpp="{{ user.tax_number|escapejs }}" data-csrf="{{ csrf_token }}"{% endblock %}
+{% block body_attrs %}data-open-dialog="" data-sync-url="{% url 'settlements_sync' %}" data-tsp-url="{% url 'kep_tsp' %}" data-year="{{ year }}" data-rnokpp="{{ user.tax_number|escapejs }}" data-csrf="{{ csrf_token }}"{% endblock %}
 
 {% block page_content %}
 <div class="panel settlements-panel">
