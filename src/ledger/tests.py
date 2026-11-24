@@ -502,3 +502,69 @@ class PayerCardSyncTests(TestCase):
             )
         self.assertEqual(response.status_code, 401)
         self.assertFalse(PayerCard.objects.exists())
+
+
+class RegistrationTests(TestCase):
+    def register(self, username, password="x"):
+        return self.client.post(reverse("register"), {"username": username, "password": password})
+
+    def test_register_creates_user_and_logs_in(self):
+        response = self.register("New.User-1_x", "1")
+        self.assertRedirects(response, reverse("dashboard"), fetch_redirect_response=False)
+        user = User.objects.get(username="new.user-1_x")
+        self.assertTrue(user.check_password("1"))
+        self.assertEqual(self.client.get(reverse("dashboard")).status_code, 200)
+
+    def test_new_user_starts_with_empty_data(self):
+        self.register("fresh")
+        user = User.objects.get(username="fresh")
+        self.assertFalse(IncomeEntry.objects.filter(user=user).exists())
+        self.assertContains(self.client.get(reverse("dashboard")), "fresh")
+
+    def test_login_rules(self):
+        for bad in ("ab", "a" * 33, "bad name", "логін", "a@b.c", "a/b"):
+            response = self.register(bad)
+            self.assertEqual(response.status_code, 400, bad)
+        self.assertEqual(User.objects.filter(is_superuser=False).count(), 1)  # only bond
+
+    def test_duplicate_login_ignores_case(self):
+        self.assertEqual(self.register("BOND").status_code, 400)
+        self.assertContains(self.register("Bond"), "уже зайнятий", status_code=400)
+        self.register("alice")
+        self.client.logout()
+        self.assertEqual(self.register("ALICE").status_code, 400)
+
+    def test_empty_password_rejected(self):
+        self.assertEqual(self.register("alice", "").status_code, 400)
+        self.assertFalse(User.objects.filter(username="alice").exists())
+
+    def test_any_nonempty_password_accepted(self):
+        self.assertEqual(self.register("alice", "1").status_code, 302)
+
+    def test_logged_in_user_is_sent_away_from_register(self):
+        self.client.force_login(User.objects.get(username="bond"))
+        self.assertRedirects(self.client.get(reverse("register")), reverse("dashboard"), fetch_redirect_response=False)
+
+    def test_login_ignores_case_and_spaces(self):
+        self.register("alice", "secret")
+        self.client.logout()
+        response = self.client.post(reverse("login"), {"username": " Alice ", "password": "secret"})
+        self.assertRedirects(response, reverse("dashboard"), fetch_redirect_response=False)
+
+    def test_login_wrong_password(self):
+        response = self.client.post(reverse("login"), {"username": "bond", "password": "nope"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "errorlist")
+
+    def test_pages_link_to_each_other(self):
+        self.assertContains(self.client.get(reverse("login")), reverse("register"))
+        self.assertContains(self.client.get(reverse("register")), reverse("login"))
+
+    def test_users_do_not_see_each_others_data(self):
+        self.register("alice")
+        with mock.patch.object(nbu, "official_rate", return_value=Decimal("1")):
+            self.client.post(reverse("income_add"), {
+                "received_on": "2026-01-10", "currency": "uah", "amount": "100", "year": 2026})
+        self.client.logout()
+        self.client.force_login(User.objects.get(username="bond"))
+        self.assertFalse(IncomeEntry.objects.filter(user__username="bond").exists())

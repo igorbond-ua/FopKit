@@ -1,7 +1,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
-  background: #e4e1db;
+  background: #eef6fc;
   color: #1a2c3d;
   font-family: "Helvetica Neue", "Segoe UI", Arial, sans-serif;
 }
@@ -12,7 +12,7 @@ button, input, select { font: inherit; }
   background: #e7eef5;
   border-radius: 18px;
   padding: 22px;
-  box-shadow: 0 16px 40px rgba(40, 36, 28, 0.08);
+  box-shadow: 0 16px 40px rgba(31, 78, 121, 0.12);
 }
 .top { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; padding: 0 6px; }
 .brand { font-size: 13px; letter-spacing: 0.16em; font-weight: 700; }
@@ -186,7 +186,25 @@ dialog::backdrop { background: rgba(26, 44, 61, 0.35); }
 .span-2 { grid-column: span 2; }
 
 .login-wrap { width: min(420px, calc(100% - 32px)); margin: 12vh auto; }
-.login-sheet .panel h2 { margin-bottom: 4px; }
+.auth-switch { display: flex; margin: 0 0 16px; border: 1px solid #c9d8e8; border-radius: 6px; overflow: hidden; }
+.auth-tab {
+  flex: 1;
+  padding: 9px 0;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #4d657a;
+  background: #fff;
+  text-decoration: none;
+}
+.auth-tab + .auth-tab { border-left: 1px solid #c9d8e8; }
+.auth-tab:hover { background: #eef3f8; }
+.auth-tab.active { background: #2f5f8a; color: #f4f8fb; }
+.auth-tab:focus-visible { outline: 2px solid #8fb0d0; outline-offset: -2px; }
+.login-sheet .field { margin-bottom: 12px; }
+.login-sheet .btn.add { margin-top: 16px; }
+.auth-note { margin: 14px 0 0; font-size: 13px; color: #5c7084; text-align: center; }
+.auth-note a { color: #2f5f8a; font-weight: 700; }
 
 /* ── Navigation tabs ──────────────────────────────── */
 .tabs {

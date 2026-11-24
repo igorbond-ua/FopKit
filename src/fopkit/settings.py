@@ -78,14 +78,8 @@ else:
 
 AUTH_USER_MODEL = "ledger.User"
 
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-        "OPTIONS": {"min_length": 8},
-    },
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
-]
+# No password rules by design: registration and the cabinet accept any non-empty password.
+AUTH_PASSWORD_VALIDATORS = []
 
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "dashboard"

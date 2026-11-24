@@ -6,8 +6,10 @@ from urllib.parse import urlparse
 import requests
 
 from django.contrib import messages
+from django.contrib.auth import login as auth_login
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
+from django.db import IntegrityError
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -15,7 +17,7 @@ from django.utils.http import urlencode
 from django.views.decorators.http import require_POST
 
 from . import cabinet, nbu, requisites, services
-from .forms import IncomeForm, ProfileForm
+from .forms import IncomeForm, ProfileForm, RegisterForm
 from .models import IncomeEntry, MonthRecord, PayerCard
 
 logger = logging.getLogger(__name__)
@@ -79,6 +81,23 @@ def render_dashboard(request, year, *, income_form=None, profile_form=None, open
         "open_month": open_month or "",
     }
     return render(request, "ledger/dashboard.html", context, status=status)
+
+
+def register(request):
+    if request.user.is_authenticated:
+        return redirect("dashboard")
+    form = RegisterForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            user = form.save()
+        except IntegrityError:
+            # Another request took the same login between the check and the insert.
+            form.add_error("username", "Цей логін уже зайнятий.")
+        else:
+            auth_login(request, user)
+            return redirect("dashboard")
+    context = {"form": form, "auth_mode": "register"}
+    return render(request, "ledger/register.html", context, status=400 if form.errors else 200)
 
 
 @login_required

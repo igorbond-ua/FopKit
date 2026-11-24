@@ -1,13 +1,63 @@
 import datetime
+import re
 
 from django import forms
 from django.contrib.auth import password_validation
+from django.contrib.auth.forms import AuthenticationForm
 
 from . import services
 from .models import IncomeEntry, User
 from .money import AmountError, parse_amount_minor
 
 DATE_INPUT = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
+
+LOGIN_RE = re.compile(r"^[a-z0-9_.-]+$")
+LOGIN_MIN, LOGIN_MAX = 3, 32
+PASSWORD_MAX = 128
+
+
+class LoginForm(AuthenticationForm):
+    """Logins are stored in lower case, so "Bond" and "bond" are the same account."""
+
+    def clean_username(self):
+        return self.cleaned_data["username"].strip().lower()
+
+
+class RegisterForm(forms.Form):
+    username = forms.CharField(
+        label="Логін",
+        max_length=LOGIN_MAX,
+        help_text="Від 3 до 32 символів: латинські літери, цифри, крапка, дефіс і підкреслення. Регістр не важливий.",
+        widget=forms.TextInput(attrs={"autocomplete": "username", "autocapitalize": "none", "spellcheck": "false"}),
+    )
+    password = forms.CharField(
+        label="Пароль",
+        max_length=PASSWORD_MAX,
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs["class"] = "box"
+
+    def clean_username(self):
+        value = self.cleaned_data["username"].strip().lower()
+        if not LOGIN_MIN <= len(value) <= LOGIN_MAX:
+            raise forms.ValidationError(f"Логін — від {LOGIN_MIN} до {LOGIN_MAX} символів.")
+        if not LOGIN_RE.fullmatch(value):
+            raise forms.ValidationError(
+                "Дозволені лише латинські літери, цифри, крапка, дефіс і підкреслення."
+            )
+        if User.objects.filter(username__iexact=value).exists():
+            raise forms.ValidationError("Цей логін уже зайнятий.")
+        return value
+
+    def save(self):
+        return User.objects.create_user(
+            username=self.cleaned_data["username"], password=self.cleaned_data["password"]
+        )
 
 
 class IncomeForm(forms.Form):

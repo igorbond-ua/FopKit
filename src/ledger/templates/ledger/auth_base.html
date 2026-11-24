@@ -1,0 +1,15 @@
+{% extends "ledger/base.html" %}
+{% block body %}
+<div class="login-wrap">
+  <div class="sheet login-sheet">
+    <div class="top"><div class="brand">FOPKIT</div></div>
+    <div class="panel">
+      <nav class="auth-switch" aria-label="Вхід або реєстрація">
+        <a href="{% url 'login' %}" class="auth-tab{% if auth_mode == 'login' %} active{% endif %}">Вхід</a>
+        <a href="{% url 'register' %}" class="auth-tab{% if auth_mode == 'register' %} active{% endif %}">Реєстрація</a>
+      </nav>
+      {% block auth_form %}{% endblock %}
+    </div>
+  </div>
+</div>
+{% endblock %}

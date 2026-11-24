@@ -1,0 +1,20 @@
+{% extends "ledger/auth_base.html" %}
+{% block title %}Реєстрація — FopKit{% endblock %}
+{% block auth_form %}
+<form method="post">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+    <ul class="errorlist">{% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% for field in form %}
+    <label class="field">
+      <span>{{ field.label }}</span>
+      {{ field }}
+      {% if field.help_text %}<small class="hint">{{ field.help_text }}</small>{% endif %}
+      {{ field.errors }}
+    </label>
+  {% endfor %}
+  <button type="submit" class="btn add">Зареєструватися</button>
+</form>
+<p class="auth-note">Уже є обліковий запис? <a href="{% url 'login' %}">Увійти</a></p>
+{% endblock %}

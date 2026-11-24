@@ -2,14 +2,21 @@ from django.contrib.auth import views as auth_views
 from django.urls import path
 
 from . import views
+from .forms import LoginForm
 
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path(
         "login/",
-        auth_views.LoginView.as_view(template_name="ledger/login.html", redirect_authenticated_user=True),
+        auth_views.LoginView.as_view(
+            template_name="ledger/login.html",
+            authentication_form=LoginForm,
+            redirect_authenticated_user=True,
+            extra_context={"auth_mode": "login"},
+        ),
         name="login",
     ),
+    path("register/", views.register, name="register"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("income/", views.income_add, name="income_add"),
     path("income/<int:entry_id>/", views.income_edit, name="income_edit"),
