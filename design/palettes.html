@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="uk"><meta charset="utf-8"><title>Палітри</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:20px;background:#fff;font-family:"Helvetica Neue",Arial,sans-serif;display:grid;grid-template-columns:1fr 1fr;gap:20px;width:1500px}
+.v{border-radius:10px;padding:0;overflow:hidden}
+.lbl{font:700 14px Arial;padding:6px 10px;background:#222;color:#fff}
+.bg{background:var(--bg);padding:26px 30px}
+.sheet{background:var(--sheet);border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(0,0,0,.18);color:var(--text)}
+.top{display:flex;justify-content:space-between;font-size:11px;font-weight:700;letter-spacing:.15em;margin-bottom:12px}
+.top span:last-child{font-weight:400;letter-spacing:0;opacity:.7}
+.desk{display:grid;grid-template-columns:1.2fr 1fr;gap:12px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px}
+h3{margin:0 0 8px;font-size:13px}
+table{width:100%;border-collapse:collapse}
+td,th{border:1px solid var(--line);padding:4px 7px;font-size:11px;text-align:left}
+th{background:var(--th);font-size:9px;text-transform:uppercase}
+.q td{background:var(--q);font-weight:700}
+.p td{background:var(--paid);color:var(--paidt);font-weight:700}
+.y td{background:var(--y);font-weight:700}
+.btn{display:inline-block;background:var(--acc);color:var(--acct);padding:6px 12px;border-radius:5px;font-size:11px;margin-top:6px}
+.chip{display:inline-block;border:1px solid var(--line);background:#fff;padding:4px 8px;font-size:10px;margin-right:3px}
+.chip.on{background:var(--acc);color:var(--acct);border-color:var(--acc)}
+.in{background:#fff;border:1px solid var(--line);padding:5px;font-size:11px;margin-top:4px;color:#888}
+</style>
+<body>
+<script>
+const base={bg:"#c9ccd1",sheet:"#f1f2f4",panel:"#fff",line:"#d9dce1",th:"#eceef1",q:"#f0f2f5",y:"#dfe3e9",paid:"#e0f1e4",paidt:"#1d6840",acc:"#2563eb",acct:"#fff",text:"#1b1f27"};
+const V=[
+["1. Як вибраний (сірий + синій)",base],
+["2. Те саме, таблиця з поточного дизайну",{...base,line:"#c9d8e8",th:"#e7f0f8",q:"#e8f1f8",y:"#d5e4f2",paid:"#dceddf"}],
+["3. Сірий + бірюзовий акцент, тепла таблиця",{...base,bg:"#cbcdd0",sheet:"#f3f2f0",line:"#dcd8d0",th:"#ece9e3",q:"#f1eee8",y:"#e2ddd2",acc:"#0f8b8d"}],
+["4. Темніша підложка (графіт) + синій акцент",{...base,bg:"#3a3f4a",sheet:"#eef0f3",line:"#d3d8e0",th:"#e4e8ee",q:"#e8ecf2",y:"#d5dce8",acc:"#2563eb"}],
+];
+for(const[n,c]of V){const s=Object.entries(c).map(([k,v])=>`--${k}:${v}`).join(";");
+document.body.insertAdjacentHTML("beforeend",`<div class="v" style="${s}"><div class="lbl">${n}</div><div class="bg"><div class="sheet">
+<div class="top"><span>FOPKIT</span><span>user@mail.com · Вийти</span></div>
+<div class="desk"><div><div class="panel"><h3>Доходи 2026</h3>
+<table><tr><th>Міс.</th><th>Дохід</th><th>Податок</th></tr>
+<tr><td>Січень</td><td>42 000</td><td>420</td></tr><tr><td>Лютий</td><td>38 500</td><td>385</td></tr><tr><td>Березень</td><td>51 000</td><td>510</td></tr>
+<tr class="q"><td>I квартал</td><td>131 500</td><td>1 315</td></tr>
+<tr class="p"><td>II квартал</td><td>120 000</td><td>1 200 ✓</td></tr>
+<tr class="y"><td>Рік</td><td>251 500</td><td>2 515</td></tr></table></div></div>
+<div><div class="panel"><h3>Додати дохід</h3><span class="chip on">Картка</span><span class="chip">Готівка</span><div class="in">Сума, ₴</div><span class="btn">Зберегти</span></div>
+<div class="panel"><h3>Останні</h3><div style="font-size:11px">12.03 · 15 000 ₴<br>03.03 · 8 500 ₴</div></div></div></div>
+</div></div></div>`)}
+</script>
