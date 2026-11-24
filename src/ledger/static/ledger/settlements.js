@@ -7,13 +7,8 @@
   if (document.body.dataset.settlementsBound) return;
   document.body.dataset.settlementsBound = "1";
 
-  // Values read from data-* attributes on <body> (set by the settlements template).
-  // This avoids inline <script> tags which would be blocked by our CSP.
-  var syncUrl  = document.body.dataset.syncUrl  || "";
-  var year     = Number(document.body.dataset.year) || 0;
-  var rnokpp   = document.body.dataset.rnokpp   || "";
-  var csrf     = document.body.dataset.csrf     || "";
-  var userId   = document.body.dataset.userId   || "";
+  var syncUrl = document.body.dataset.syncUrl || "";
+  var year    = Number(document.body.dataset.year) || 0;
 
   // ── Account card switching ──────────────────────────────────────────
 
@@ -30,109 +25,24 @@
 
   // ── Sync flow ───────────────────────────────────────────────────────
 
-  var syncBtn     = document.getElementById("sync-btn");
-  var syncDlg     = document.getElementById("sync-password-dialog");
-  var syncSignBtn = document.getElementById("sync-sign-btn");
-  var syncCancel  = document.getElementById("sync-cancel");
-  var syncPwd     = document.getElementById("sync-password");
-  var syncErr     = document.getElementById("sync-error");
-  var noKeyMsg    = document.getElementById("settlements-no-key-msg");
+  var syncBtn  = document.getElementById("sync-btn");
+  var noKeyMsg = document.getElementById("settlements-no-key-msg");
 
-  function showSyncError(msg) {
-    if (syncErr) { syncErr.textContent = msg; syncErr.hidden = false; }
-  }
-  function clearSyncError() {
-    if (syncErr) { syncErr.hidden = true; syncErr.textContent = ""; }
-  }
-
-  function setSignBtnBusy(busy) {
-    if (syncSignBtn) {
-      syncSignBtn.disabled = busy;
-      syncSignBtn.textContent = busy ? "Підписую…" : "Підписати і синхронізувати";
-    }
-  }
-
-  if (syncBtn && syncDlg) {
+  if (syncBtn && window.kepStore) {
     syncBtn.addEventListener("click", function () {
-      // Check if key exists before showing dialog
-      if (!window.kepStore) { showSyncError("KEP store not available."); return; }
-      kepStore.getKeyRecord(userId).then(function (record) {
-        if (!record) {
-          // Show hint to add key
-          if (noKeyMsg) noKeyMsg.hidden = false;
-          return;
-        }
-        clearSyncError();
-        if (syncPwd) syncPwd.value = "";
-        syncDlg.showModal();
-        setTimeout(function () { if (syncPwd) syncPwd.focus(); }, 50);
+      kepStore.signAndPost(syncUrl, { year: year }).then(function (data) {
+        if (data) window.location.href = data.redirect || window.location.href;
+      }).catch(function (err) {
+        if (err && err.message === "NO_KEY" && noKeyMsg) noKeyMsg.hidden = false;
       });
     });
-
-    if (syncCancel) syncCancel.addEventListener("click", function () { syncDlg.close(); });
-
-    if (syncSignBtn) {
-      syncSignBtn.addEventListener("click", function () {
-        clearSyncError();
-        var password = syncPwd ? syncPwd.value : "";
-        if (!password) { showSyncError("Введіть пароль ключа."); return; }
-
-        if (!rnokpp) {
-          showSyncError("Заповніть РНОКПП у профілі перед синхронізацією.");
-          return;
-        }
-
-        setSignBtnBusy(true);
-
-        var timestamp = Date.now();
-        kepStore.signRnokpp(userId, password, rnokpp, timestamp)
-          .then(function (result) {
-            return fetch(syncUrl, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": csrf,
-              },
-              body: JSON.stringify({ username: result.username, password: result.password, year: year }),
-            });
-          })
-          .then(function (resp) {
-            return resp.json().then(function (data) {
-              return { ok: resp.ok, data: data };
-            }, function () {
-              return { ok: false, data: { error: "Помилка сервера FopKit (HTTP " + resp.status + ")." } };
-            });
-          })
-          .then(function (result) {
-            setSignBtnBusy(false);
-            if (result.ok) {
-              syncDlg.close();
-              window.location.href = result.data.redirect || window.location.href;
-            } else {
-              showSyncError(result.data.error || "Помилка синхронізації.");
-            }
-          })
-          .catch(function (err) {
-            setSignBtnBusy(false);
-            var msg = err.message || String(err);
-            if (msg === "LIBRARY_NOT_LOADED") {
-              showSyncError("Бібліотека підпису ще не підключена. Дивіться kep.js → INTEGRATION POINT.");
-            } else if (msg === "NO_KEY") {
-              showSyncError("Ключ КЕП не знайдено. Додайте його в Кабінеті.");
-            } else if (msg === "WRONG_PASSWORD") {
-              showSyncError("Невірний пароль ключа.");
-              if (syncPwd) syncPwd.focus();
-            } else {
-              showSyncError("Помилка підпису: " + msg);
-            }
-          });
-      });
-    }
   }
 
   // ── Auto-submit year selector ───────────────────────────────────────
 
   document.querySelectorAll("[data-autosubmit]").forEach(function (input) {
+    if (input.dataset.autosubmitBound) return;
+    input.dataset.autosubmitBound = "1";
     input.addEventListener("change", function () { input.form.submit(); });
   });
 

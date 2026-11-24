@@ -8,8 +8,8 @@ from xml.sax.saxutils import escape
 from django.test import TestCase
 from django.urls import reverse
 
-from . import nbu, requisites, services
-from .models import IncomeEntry, MonthRecord, PaymentRequisite, User
+from . import cabinet, nbu, payer_card, requisites, services
+from .models import IncomeEntry, MonthRecord, PayerCard, PaymentRequisite, User
 from .money import AmountError, convert_to_kopiykas, format_kopiykas, parse_amount_minor, percent_ceil
 
 TODAY = datetime.date(2026, 11, 13)
@@ -98,7 +98,7 @@ class LedgerTests(TestCase):
 
     def test_dashboard_fills_started_months_esv(self):
         response = self.client.get(reverse("dashboard"))
-        self.assertContains(response, "Бондаренко Ігор · 3 група, без ПДВ · 2026")
+        self.assertContains(response, "Бондаренко Ігор · 3 група, без ПДВ")
         months = set(MonthRecord.objects.filter(user=self.user, year=2026).values_list("month", flat=True))
         self.assertEqual(months, set(range(1, 12)))
 
@@ -378,3 +378,127 @@ class RequisitesViewTests(TestCase):
         with mock.patch.object(requisites, "fetch", side_effect=AssertionError("must not fetch")):
             response = self.client.post(reverse("refresh_requisites"), {"year": 2026}, follow=True)
         self.assertContains(response, "вкажіть у кабінеті область обліку і територіальну громаду")
+
+
+RAW_PAYER_CARD = [
+    {
+        "idGroup": 1,
+        "title": "Реєстраційні дані",
+        "type": 1,
+        "headers": {
+            "tin": "Податковий номер",
+            "name": "Прізвище, ім'я, по батькові",
+            "dreg": "Дата державної реєстрації",
+            "adr": "Місцезнаходження (податкова адреса)",
+            "sti": "Контролюючий орган, в якому перебуває на обліку",
+            "dobl": "Дата взяття на облік",
+        },
+        "values": {
+            "tin": "2904203411",
+            "name": "БОНДАРЕНКО ІГОР ВОЛОДИМИРОВИЧ",
+            "dreg": "15.03.2021",
+            "adr": "79000, Львівська обл., м. Львів, вул. Наукова, 1",
+            "sti": "1314 ГУ ДПС у Львівській області (Франківська ДПІ)",
+            "dobl": "16.03.2021",
+        },
+    },
+    {
+        "idGroup": 3,
+        "title": "Види економічної діяльності",
+        "type": 2,
+        "headers": {"code": "Код КВЕД", "name": "Назва", "main": "Основний"},
+        "listValues": [
+            {"code": "62.02", "name": "Консультування з питань інформатизації", "main": "Ні"},
+            {"code": "62.01", "name": "Комп'ютерне програмування", "main": "Так"},
+        ],
+    },
+]
+
+
+class PayerCardParsingTests(TestCase):
+    def test_extracts_profile_fields(self):
+        profile = payer_card.extract_profile(payer_card.normalize(RAW_PAYER_CARD))
+        self.assertEqual(profile, {
+            "last_name": "Бондаренко",
+            "first_name": "Ігор",
+            "middle_name": "Володимирович",
+            "tax_number": "2904203411",
+            "fop_registered_on": datetime.date(2021, 3, 15),
+            "registration_address": "79000, Львівська обл., м. Львів, вул. Наукова, 1",
+            "tax_office_code": "1314",
+            "tax_office_name": "ГУ ДПС у Львівській області (Франківська ДПІ)",
+            "primary_kved": "62.01 Комп'ютерне програмування",
+            "tax_region": "lv",
+        })
+
+    def test_real_cabinet_labels(self):
+        raw = [
+            {"idGroup": 2, "title": "Реєстраційні дані", "type": 1,
+             "headers": {"d": "Дата взяття на облік платника податків", "t": "Телефони"},
+             "values": {"d": "01.09.2011", "t": "+38(093)-741-25-58, +38(032)-000-00-00"}},
+            {"idGroup": 7, "title": "Дані про реєстрацію платником ЄСВ", "type": 1,
+             "headers": {"d": "Дата взяття на облік"}, "values": {"d": "06.09.2011"}},
+            {"idGroup": 16, "title": "Види діяльності", "type": 2,
+             "headers": {"c": "Код ВЕД", "n": "Найменування ВЕД", "m": "Основна"},
+             "listValues": [{"c": "_73.20", "n": "Дослідження ринку", "m": "0"},
+                            {"c": "_62.01", "n": "Комп'ютерне програмування", "m": "1"}]},
+        ]
+        profile = payer_card.extract_profile(payer_card.normalize(raw))
+        self.assertEqual(profile["fop_registered_on"], datetime.date(2011, 9, 1))
+        self.assertEqual(profile["phone"], "+38(093)-741-25-58")
+        self.assertEqual(profile["primary_kved"], "62.01 Комп'ютерне програмування")
+
+    def test_ignores_malformed_groups(self):
+        groups = payer_card.normalize([None, {"title": "без заголовків"}, *RAW_PAYER_CARD[1:]])
+        self.assertEqual([group["kind"] for group in groups], ["table"])
+        self.assertEqual(payer_card.extract_profile([]), {})
+
+
+class PayerCardSyncTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.get(username="bond")
+        self.client.force_login(self.user)
+
+    def sync(self):
+        with mock.patch.object(cabinet, "get_token", return_value="token"), \
+                mock.patch.object(cabinet, "fetch_payer_card", return_value=RAW_PAYER_CARD):
+            return self.client.post(
+                reverse("profile_sync"),
+                data='{"username": "2904203411-2904203411-1", "password": "c2ln"}',
+                content_type="application/json",
+            )
+
+    def test_sync_fills_profile_and_stores_card(self):
+        response = self.sync()
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.middle_name, "Володимирович")
+        self.assertEqual(self.user.primary_kved, "62.01 Комп'ютерне програмування")
+        self.assertEqual(self.user.fop_registered_on, datetime.date(2021, 3, 15))
+        card = PayerCard.objects.get(user=self.user)
+        self.assertIn("primary_kved", card.filled_fields)
+        page = self.client.get(reverse("requisites"))
+        self.assertContains(page, "Дані з податкової оновлено. Змінились:")
+        self.assertContains(page, "Види економічної діяльності")
+
+    def test_dps_fields_win_over_manual_input(self):
+        self.sync()
+        self.client.post(reverse("profile"), {
+            "last_name": "Інше", "first_name": "Ім'я", "middle_name": "", "tax_number": "1111111111",
+            "phone": "+380501234567", "community": "Львівська міська ТГ", "year": 2026,
+        })
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.last_name, "Бондаренко")
+        self.assertEqual(self.user.tax_number, "2904203411")
+        self.assertEqual(self.user.phone, "+380501234567")
+
+    def test_rejected_login_changes_nothing(self):
+        error = cabinet.SignatureExpiredError("Кабінет ДПС не прийняв вхід.")
+        with mock.patch.object(cabinet, "get_token", side_effect=error):
+            response = self.client.post(
+                reverse("profile_sync"),
+                data='{"username": "u", "password": "p"}',
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 401)
+        self.assertFalse(PayerCard.objects.exists())

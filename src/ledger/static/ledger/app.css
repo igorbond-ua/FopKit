@@ -85,6 +85,26 @@ td.clickable:hover, tr.clickable:hover td, .clickable:focus-visible, tr.clickabl
 .box.readonly { background: #eef3f8; color: #4d657a; }
 .hint { display: block; margin-top: 3px; font-size: 11px; color: #5c7084; }
 
+.password-wrap { position: relative; display: block; }
+.password-wrap .box { padding-right: 42px; }
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #5c7084;
+  cursor: pointer;
+}
+.password-toggle:hover { color: #1a2c3d; background: #eef3f8; }
+.password-toggle:focus-visible { outline: 2px solid #8fb0d0; outline-offset: 0; }
+.password-toggle svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
 .chips { display: flex; }
 .chip {
   flex: 1;
@@ -256,6 +276,42 @@ dialog::backdrop { background: rgba(26, 44, 61, 0.35); }
 /* ── Sync password dialog ─────────────────────────── */
 .sync-pwd-hint { margin: 4px 0 0; font-size: 12px; color: #5c7084; }
 
+/* ── Data from the tax cabinet ───────────────────── */
+.dps-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: #eef3f8;
+  border: 1px solid #d5e2ee;
+  border-radius: 6px;
+}
+.dps-status { margin: 0; font-size: 12px; color: #4d657a; }
+.dps-bar .btn { flex: none; }
+.dps-badge {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: #d5e4f2;
+  color: #2d5a85;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  vertical-align: 1px;
+}
+.box.from-dps, .box:disabled { background: #eef3f8; color: #4d657a; }
+.payer-card { margin-top: 18px; padding-top: 14px; border-top: 1px solid #d5e2ee; }
+.payer-group { border: 1px solid #d5e2ee; border-radius: 6px; margin-bottom: 6px; }
+.payer-group > summary { cursor: pointer; padding: 8px 10px; font-size: 13px; font-weight: 700; color: #1a2c3d; }
+.payer-group[open] > summary { border-bottom: 1px solid #d5e2ee; }
+.payer-group .table-scroll, .payer-group .no-data { margin: 8px 10px 10px; }
+.payer-table td { white-space: normal; }
+.payer-pairs { display: grid; grid-template-columns: minmax(160px, 40%) 1fr; gap: 4px 12px; margin: 8px 10px 10px; font-size: 13px; }
+.payer-pairs dt { color: #5c7084; }
+.payer-pairs dd { margin: 0; color: #1a2c3d; }
+
 /* ── KEP section in cabinet ──────────────────────── */
 .kep-section {
   margin-top: 18px;
@@ -312,6 +368,8 @@ dialog::backdrop { background: rgba(26, 44, 61, 0.35); }
   .session { flex-wrap: wrap; }
   .cabinet-grid { grid-template-columns: 1fr; }
   .span-2 { grid-column: auto; }
+  .dps-bar { flex-direction: column; align-items: stretch; }
+  .payer-pairs { grid-template-columns: 1fr; }
   .tabs { overflow-x: auto; gap: 0; }
   .tab { white-space: nowrap; padding: 8px 12px; font-size: 12px; }
 }

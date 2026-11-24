@@ -133,6 +133,18 @@ class TaxSettlementOperation(models.Model):
         ordering = ["operation_date", "id"]
 
 
+class PayerCard(models.Model):
+    """Знімок «Даних платника» з кабінету ДПС (/ws/api/payer_card)."""
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="payer_card")
+    groups = models.JSONField(default=list)
+    filled_fields = models.JSONField(default=list)
+    synced_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "payer_cards"
+
+
 class PaymentRequisite(models.Model):
     class Kind(models.TextChoices):
         SINGLE_TAX = "single_tax", "ЄП"

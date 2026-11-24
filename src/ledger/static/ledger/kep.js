@@ -1,18 +1,10 @@
 /**
- * kep.js — KEP key management (IndexedDB) and signing.
+ * kep.js — KEP key management (IndexedDB), signing and the shared
+ * "sign in to the tax cabinet" flow.
  *
  * The key file (Key-6.dat, .jks, .pfx) is stored encrypted in IndexedDB.
- * The signing function is a stub that must be completed once a JS crypto
- * library is chosen and tested with a real key.
- *
- * INTEGRATION POINT (signRnokpp):
- *   Replace the stub body with a call to the chosen library.
- *   Candidates:
- *     - jkurwa (https://github.com/dstucrypt/jkurwa) — pure JS, ДСТУ 4145
- *     - ІІТ eusign.js (https://iit.com.ua) — needs browser extension for hw tokens,
- *       but file keys work without it via their JS-only build
- *   The function must return a Base64-encoded CAdES signature of `rnokpp`
- *   with the signer certificate and a time-stamp (required by cabinet.tax.gov.ua).
+ * Signing runs in kep_worker.js with jkurwa; signAndPost() asks for the key
+ * password and posts the signed cabinet login to one of our sync endpoints.
  */
 
 (function (global) {
@@ -251,6 +243,109 @@
     });
   }
 
+  // ── Sign in to the tax cabinet and post the signed login ──────────────
+
+  var signRequest = null;  // { url, extra, resolve } while the password dialog is open
+
+  function signErrorText(err) {
+    var msg = (err && err.message) || String(err);
+    if (msg === "LIBRARY_NOT_LOADED") return "Бібліотека підпису не завантажилась. Оновіть сторінку.";
+    if (msg === "NO_KEY") return "Ключ КЕП не знайдено. Додайте його в Кабінеті.";
+    if (msg === "WRONG_PASSWORD") return "Невірний пароль ключа.";
+    return "Помилка підпису: " + msg;
+  }
+
+  function loginTaxNumber(record) {
+    var fromKey = String(record.tax_number || "").replace(/\D/g, "");
+    if (fromKey.length === 10) return fromKey;
+    return document.body.dataset.rnokpp || "";
+  }
+
+  function initSignDialog() {
+    var dialog = document.getElementById("kep-sign-dialog");
+    if (!dialog || dialog.dataset.bound) return;
+    dialog.dataset.bound = "1";
+    var pwd = document.getElementById("kep-sign-password");
+    var btn = document.getElementById("kep-sign-btn");
+    var err = document.getElementById("kep-sign-error");
+
+    function showError(text) { err.textContent = text; err.hidden = false; }
+    function setBusy(busy) { btn.disabled = busy; btn.textContent = busy ? "Підписую…" : "Підписати"; }
+    function finish(data) {
+      var request = signRequest;
+      signRequest = null;
+      if (dialog.open) dialog.close();
+      if (request) request.resolve(data);
+    }
+
+    function submit() {
+      if (!signRequest || btn.disabled) return;
+      err.hidden = true;
+      if (!pwd.value) { showError("Введіть пароль ключа."); return; }
+      var request = signRequest;
+      setBusy(true);
+      getKeyRecord(request.userId).then(function (record) {
+        if (!record) throw new Error("NO_KEY");
+        var taxNumber = loginTaxNumber(record);
+        if (!taxNumber) throw new Error("У ключі й у кабінеті немає РНОКПП.");
+        return signRnokpp(request.userId, pwd.value, taxNumber, Date.now());
+      }).then(function (login) {
+        var body = Object.assign({ username: login.username, password: login.password }, request.extra);
+        return fetch(request.url, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json", "X-CSRFToken": document.body.dataset.csrf || "" },
+          body: JSON.stringify(body),
+        }).then(function (resp) {
+          return resp.json().then(function (data) {
+            return { ok: resp.ok, data: data };
+          }, function () {
+            return { ok: false, data: { error: "Помилка сервера FopKit (HTTP " + resp.status + ")." } };
+          });
+        });
+      }).then(function (result) {
+        setBusy(false);
+        if (result.ok) finish(result.data);
+        else showError(result.data.error || "Не вдалося отримати дані з кабінету ДПС.");
+      }).catch(function (e) {
+        setBusy(false);
+        showError(signErrorText(e));
+        if (e && e.message === "WRONG_PASSWORD") pwd.focus();
+      });
+    }
+
+    btn.addEventListener("click", submit);
+    pwd.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); submit(); }
+    });
+    document.getElementById("kep-sign-cancel").addEventListener("click", function () { finish(null); });
+    dialog.addEventListener("cancel", function () { finish(null); });
+  }
+
+  /**
+   * Ask for the key password, sign in to the tax cabinet in the browser and POST
+   * {username, password, ...extra} to `url`.
+   * Resolves with the server's JSON on success, or null if the user cancels.
+   * Rejects with Error("NO_KEY") when no key is stored.
+   */
+  function signAndPost(url, extra) {
+    var userId = document.body.dataset.userId || "";
+    return getKeyRecord(userId).then(function (record) {
+      if (!record) throw new Error("NO_KEY");
+      if (signRequest) return new Promise(function () {});  // a sign-in is already in progress
+      initSignDialog();
+      return new Promise(function (resolve) {
+        signRequest = { url: url, extra: extra || {}, userId: userId, resolve: resolve };
+        var dialog = document.getElementById("kep-sign-dialog");
+        var pwd = document.getElementById("kep-sign-password");
+        document.getElementById("kep-sign-error").hidden = true;
+        pwd.value = "";
+        dialog.showModal();
+        pwd.focus();
+      });
+    });
+  }
+
   // ── Cabinet dialog: KEP section UI ────────────────────────────────────
 
   var currentUserId = null;
@@ -387,6 +482,15 @@
       });
     }
 
+    if (pwdInput) {
+      pwdInput.addEventListener("keydown", function (e) {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        var next = saveBtn && !saveBtn.hidden ? saveBtn : loadBtn;
+        if (next && !next.hidden) next.click();
+      });
+    }
+
     if (saveBtn) {
       saveBtn.addEventListener("click", function () {
         if (!loadedMeta || !loadedKeyBytes) return;
@@ -449,6 +553,7 @@
     deleteKey:    deleteKey,
     loadKeyMeta:  loadKeyMeta,
     signRnokpp:   signRnokpp,
+    signAndPost:  signAndPost,
     initSection:  initKepSection,
     initDialogs:  function () {
       initAddKeyDialog();

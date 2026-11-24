@@ -86,6 +86,11 @@ class ProfileForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs["class"] = "box"
+        # Values from the tax service win over manual input; disabled fields keep the stored value.
+        self.dps_fields = services.dps_fields(self.instance) if self.instance.pk else set()
+        for name in self.dps_fields & set(self.fields):
+            self.fields[name].disabled = True
+            self.fields[name].widget.attrs["class"] = "box from-dps"
 
     def clean_tax_number(self):
         value = self.cleaned_data["tax_number"].strip()

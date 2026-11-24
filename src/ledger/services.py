@@ -3,8 +3,15 @@ from django.db.models import Sum
 from django.urls import reverse
 from django.utils import timezone
 
-from . import cabinet, nbu, requisites
-from .models import IncomeEntry, MonthRecord, PaymentRequisite, TaxSettlementAccount, TaxSettlementOperation
+from . import cabinet, nbu, payer_card, requisites
+from .models import (
+    IncomeEntry,
+    MonthRecord,
+    PayerCard,
+    PaymentRequisite,
+    TaxSettlementAccount,
+    TaxSettlementOperation,
+)
 from .money import convert_to_kopiykas, format_kopiykas, format_rate, input_kopiykas, percent_ceil
 
 FIRST_YEAR = 2026
@@ -315,6 +322,34 @@ def sync_settlements(user, kep_username: str, kep_password: str, year: int) -> N
                 for op in ops
                 if op["operation_date"] is not None
             ])
+
+
+def sync_payer_card(user, kep_username: str, kep_password: str) -> list[str]:
+    """
+    Fetch "Дані платника" from the cabinet, store the snapshot and overwrite profile
+    fields with the values the tax service holds. Returns the names of changed fields.
+    """
+    access_token = cabinet.get_token(kep_username, kep_password)
+    groups = payer_card.normalize(cabinet.fetch_payer_card(access_token))
+    profile = payer_card.extract_profile(groups)
+
+    changed = [field for field, value in profile.items() if getattr(user, field) != value]
+    with transaction.atomic():
+        for field in changed:
+            setattr(user, field, profile[field])
+        if changed:
+            user.save(update_fields=changed)
+        PayerCard.objects.update_or_create(
+            user=user,
+            defaults={"groups": groups, "filled_fields": sorted(profile), "synced_at": timezone.now()},
+        )
+    return changed
+
+
+def dps_fields(user) -> set[str]:
+    """Profile fields whose value came from the tax service and must not be edited by hand."""
+    card = PayerCard.objects.filter(user=user).only("filled_fields").first()
+    return set(card.filled_fields) if card else set()
 
 
 def get_settlements(user, year: int):

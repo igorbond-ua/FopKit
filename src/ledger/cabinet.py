@@ -82,6 +82,31 @@ def _session(access_token: str) -> requests.Session:
     return s
 
 
+def _get_json(access_token: str, path: str, params=None):
+    try:
+        resp = _session(access_token).get(f"{BASE_URL}{path}", params=params, timeout=TIMEOUT)
+    except requests.RequestException as exc:
+        raise CabinetError(f"Не вдалося з'єднатися з кабінетом ДПС: {exc}") from exc
+
+    if resp.status_code == 401 or (resp.status_code in (400, 403) and "підпис" in resp.text.lower()):
+        raise SignatureExpiredError("Кабінет ДПС не прийняв вхід. Спробуйте ще раз.")
+    if not resp.ok:
+        raise CabinetError(f"Кабінет ДПС повернув помилку {resp.status_code}.")
+    try:
+        return resp.json()
+    except ValueError as exc:
+        preview = resp.text[:300].replace("\n", " ")
+        raise CabinetError(f"Кабінет ДПС повернув нечитабельну відповідь (HTTP {resp.status_code}): {preview}") from exc
+
+
+def fetch_payer_card(access_token: str) -> list:
+    """Raw groups of the payer card ("Дані платника"); see payer_card.py for the shape."""
+    data = _get_json(access_token, "/payer_card")
+    if not isinstance(data, list):
+        raise CabinetError("Кабінет ДПС повернув «Дані платника» у незнайомому форматі.")
+    return data
+
+
 def _hrn_to_kopiykas(value) -> int | None:
     """Convert a float UAH value from the API into integer kopiykas."""
     if value is None:
@@ -121,27 +146,7 @@ def fetch_settlements(access_token: str, year: int) -> list[dict]:
       charged, paid, returned, penalty, arrears, overpaid,
       penalty_balance, total_balance, budget_iban
     """
-    url = f"{BASE_URL}/ta/splatp"
-    try:
-        resp = _session(access_token).get(url, params={"year": year}, timeout=TIMEOUT)
-    except requests.RequestException as exc:
-        raise CabinetError(f"Не вдалося з'єднатися з кабінетом ДПС: {exc}") from exc
-
-    if resp.status_code == 401 or (
-        resp.status_code in (400, 403)
-        and "підпис" in resp.text.lower()
-    ):
-        raise SignatureExpiredError("Кабінет ДПС не прийняв вхід. Натисніть «Синхронізувати» ще раз.")
-
-    if not resp.ok:
-        raise CabinetError(f"Кабінет ДПС повернув помилку {resp.status_code}.")
-
-    try:
-        data = resp.json()
-    except Exception as exc:
-        preview = resp.text[:300].replace("\n", " ")
-        raise CabinetError(f"Кабінет ДПС повернув нечитабельну відповідь (HTTP {resp.status_code}): {preview}") from exc
-
+    data = _get_json(access_token, "/ta/splatp", {"year": year})
     accounts = []
     for item in data:
         accounts.append({

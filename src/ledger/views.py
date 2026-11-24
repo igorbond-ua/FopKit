@@ -16,7 +16,7 @@ from django.views.decorators.http import require_POST
 
 from . import cabinet, nbu, requisites, services
 from .forms import IncomeForm, ProfileForm
-from .models import IncomeEntry, MonthRecord
+from .models import IncomeEntry, MonthRecord, PayerCard
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +28,7 @@ def _base_context(request):
     """Context shared by all pages that extend page_base.html."""
     return {
         "profile_form": ProfileForm(instance=request.user),
+        "payer_card": PayerCard.objects.filter(user=request.user).first(),
         "tax_group": services.TAX_GROUP,
     }
 
@@ -170,6 +171,45 @@ def profile(request):
     request.user.refresh_from_db()
     year = _valid_year(request.POST.get("year"))
     return render_dashboard(request, year, profile_form=form, open_dialog="cabinet", status=400)
+
+
+def _signed_login(request):
+    """(username, password) of the signed cabinet login sent by the browser, or None."""
+    try:
+        body = json.loads(request.body)
+        username = body.get("username", "").strip()
+        password = body.get("password", "").strip()
+    except (ValueError, AttributeError):
+        return None
+    return (username, password) if username and password else None
+
+
+@login_required
+@require_POST
+def profile_sync(request):
+    """Refresh profile fields from "Дані платника" in the tax cabinet."""
+    login = _signed_login(request)
+    if login is None:
+        return JsonResponse({"error": "Підпис відсутній."}, status=400)
+    try:
+        changed = services.sync_payer_card(request.user, *login)
+    except cabinet.SignatureExpiredError as exc:
+        return JsonResponse({"error": str(exc)}, status=401)
+    except cabinet.CabinetError as exc:
+        logger.warning("Payer card sync failed for user %s: %s", request.user.pk, exc)
+        return JsonResponse({"error": str(exc)}, status=502)
+    except Exception as exc:
+        logger.exception("Payer card sync crashed for user %s", request.user.pk)
+        return JsonResponse(
+            {"error": f"Не вдалося обробити дані платника: {type(exc).__name__}: {exc}"},
+            status=500,
+        )
+    if changed:
+        labels = ", ".join(str(ProfileForm.base_fields[name].label) for name in changed)
+        messages.success(request, f"Дані з податкової оновлено. Змінились: {labels}.")
+    else:
+        messages.success(request, "Дані з податкової перевірено. Змін немає.")
+    return JsonResponse({"ok": True})
 
 
 @login_required

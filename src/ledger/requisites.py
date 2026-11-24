@@ -6,13 +6,13 @@ the page "Рахунки для сплати платежів" with two xlsx tab
 
 import io
 import re
-import urllib.error
-import urllib.request
 import zipfile
 from dataclasses import dataclass
 from html import unescape
 from urllib.parse import urlsplit
 from xml.etree import ElementTree
+
+import httpx
 
 SINGLE_TAX_CODE = "18050400"
 MILITARY_LEVY_CODE = "11011700"
@@ -46,14 +46,24 @@ REGIONS = {
     "kyiv": "м. Київ",
 }
 
-# The tax portal sits behind a bot filter that rejects requests without browser headers.
+# The tax portal sits behind an Akamai bot filter. It answers 403 "Access Denied" unless the
+# request comes over HTTP/2 with the full header set of a desktop browser, Accept-Encoding included.
 HEADERS = {
     "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
-        "(KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
     ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "uk-UA,uk;q=0.9",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "uk-UA,uk;q=0.9,en;q=0.8",
+    "Accept-Encoding": "gzip, deflate",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "sec-ch-ua": '"Chromium";v="131", "Not_A Brand";v="24"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"macOS"',
 }
 TIMEOUT_SECONDS = 30
 MAX_DOWNLOAD_BYTES = 20 * 1024 * 1024
@@ -90,14 +100,20 @@ def normalize_place(value):
 
 
 def download(url):
-    request = urllib.request.Request(url, headers=HEADERS)
     try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
-            body = response.read(MAX_DOWNLOAD_BYTES + 1)
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        with httpx.Client(http2=True, headers=HEADERS, timeout=TIMEOUT_SECONDS, follow_redirects=True) as client:
+            with client.stream("GET", url) as response:
+                if response.status_code == 403:
+                    raise RequisitesUnavailable("Сайт податкової заблокував запит (захист від ботів).")
+                if response.status_code != 200:
+                    raise RequisitesUnavailable(f"Сайт податкової повернув помилку {response.status_code}.")
+                body = b""
+                for chunk in response.iter_bytes():
+                    body += chunk
+                    if len(body) > MAX_DOWNLOAD_BYTES:
+                        raise RequisitesUnavailable("Файл реквізитів на сайті податкової завеликий.")
+    except httpx.HTTPError as exc:
         raise RequisitesUnavailable("Сайт податкової не відповідає.") from exc
-    if len(body) > MAX_DOWNLOAD_BYTES:
-        raise RequisitesUnavailable("Файл реквізитів на сайті податкової завеликий.")
     return body
 
 

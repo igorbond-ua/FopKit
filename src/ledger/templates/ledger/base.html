@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}FopKit{% endblock %}</title>
 <link rel="stylesheet" href="{% static 'ledger/app.css' %}">
+<script src="{% static 'ledger/password.js' %}" defer></script>
 </head>
-<body {% block body_attrs %}{% endblock %}{% if user.is_authenticated %} data-user-id="{{ user.id }}"{% endif %}>
+<body {% block body_attrs %}{% endblock %}{% if user.is_authenticated %} data-user-id="{{ user.id }}" data-rnokpp="{{ user.tax_number }}" data-csrf="{{ csrf_token }}" data-tsp-url="{% url 'kep_tsp' %}"{% endif %}>
 {% block body %}{% endblock %}
 {% block scripts %}{% endblock %}
 </body>

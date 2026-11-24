@@ -17,6 +17,7 @@ urlpatterns = [
     path("months/<int:year>/<int:month>/<str:kind>/toggle/", views.toggle_paid, name="toggle_paid"),
     path("esv/", views.skip_esv, name="skip_esv"),
     path("profile/", views.profile, name="profile"),
+    path("profile/sync/", views.profile_sync, name="profile_sync"),
     path("requisites/", views.requisites_page, name="requisites"),
     path("requisites/refresh/", views.refresh_requisites, name="refresh_requisites"),
     path("settlements/", views.settlements, name="settlements"),

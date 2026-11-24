@@ -34,8 +34,28 @@
   });
 
   // ── Cabinet dialog: auto-open if requested ──────────────────────────
-  if (document.body.dataset.openDialog === "cabinet") {
+  var reopenCabinet = sessionStorage.getItem("fopkit-reopen-cabinet") === "1";
+  sessionStorage.removeItem("fopkit-reopen-cabinet");
+  if (document.body.dataset.openDialog === "cabinet" || reopenCabinet) {
     openDialog(document.getElementById("cabinet-dialog"));
+  }
+
+  // ── Cabinet dialog: refresh from the tax cabinet ─────────────────────
+  var dpsSyncBtn = document.getElementById("dps-sync-btn");
+  if (dpsSyncBtn && window.kepStore && !dpsSyncBtn.dataset.bound) {
+    dpsSyncBtn.dataset.bound = "1";
+    dpsSyncBtn.addEventListener("click", function () {
+      kepStore.signAndPost(dpsSyncBtn.dataset.syncUrl).then(function (data) {
+        if (!data) return;
+        sessionStorage.setItem("fopkit-reopen-cabinet", "1");
+        window.location.reload();
+      }).catch(function (err) {
+        if (err && err.message === "NO_KEY") {
+          var status = document.querySelector(".dps-status");
+          if (status) status.textContent = "Щоб оновити дані з податкової, спершу додайте ключ КЕП нижче.";
+        }
+      });
+    });
   }
 
   // ── KEP section ──────────────────────────────────────────────────────

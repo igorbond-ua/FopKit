@@ -1,7 +1,7 @@
 {% extends "ledger/page_base.html" %}
 {% load static ledger %}
 {% block page_title %}FopKit — Розрахунки з бюджетом{% endblock %}
-{% block body_attrs %}data-open-dialog="" data-sync-url="{% url 'settlements_sync' %}" data-tsp-url="{% url 'kep_tsp' %}" data-year="{{ year }}" data-rnokpp="{{ user.tax_number|escapejs }}" data-csrf="{{ csrf_token }}"{% endblock %}
+{% block body_attrs %}data-open-dialog="" data-sync-url="{% url 'settlements_sync' %}" data-year="{{ year }}"{% endblock %}
 
 {% block page_content %}
 <div class="panel settlements-panel">
@@ -87,25 +87,6 @@
     {% endif %}
   {% endif %}
 </div>
-{% endblock %}
-
-{% block page_dialogs %}
-{# ── KЕП password dialog for sync ─────────────────── #}
-<dialog id="sync-password-dialog" aria-labelledby="sync-pwd-title">
-  <div class="dialog-body">
-    <h2 id="sync-pwd-title">Пароль ключа КЕП</h2>
-    <p class="sync-pwd-hint">Ключ підписує РНОКПП у браузері. Пароль на сервер не передається.</p>
-    <label class="field" style="margin-top:8px">
-      <span>Пароль</span>
-      <input type="password" id="sync-password" class="box" autocomplete="current-password">
-    </label>
-    <p id="sync-error" class="kep-add-error" hidden></p>
-  </div>
-  <div class="dialog-foot">
-    <button type="button" class="btn secondary" id="sync-cancel">Відміна</button>
-    <button type="button" class="btn" id="sync-sign-btn">Підписати і синхронізувати</button>
-  </div>
-</dialog>
 {% endblock %}
 
 {% block page_scripts %}

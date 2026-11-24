@@ -41,6 +41,16 @@
       {% if profile_form.non_field_errors %}
         <ul class="errorlist">{% for error in profile_form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
       {% endif %}
+      <div class="dps-bar">
+        <p class="dps-status">
+          {% if payer_card %}
+            Дані з податкової оновлено {{ payer_card.synced_at|date:"d.m.Y H:i" }}. Поля з позначкою <span class="dps-badge">ДПС</span> заповнені податковою і вручну не змінюються.
+          {% else %}
+            Дані з податкової ще не завантажувались. Після оновлення поля, які знає податкова, заповняться з кабінету ДПС.
+          {% endif %}
+        </p>
+        <button type="button" class="btn" id="dps-sync-btn" data-sync-url="{% url 'profile_sync' %}">Оновити з податкової</button>
+      </div>
       <div class="cabinet-grid">
         <div class="field"><span>Логін</span><div class="box readonly">{{ user.username }}</div></div>
         <div class="field"><span>Група єдиного податку</span><div class="box readonly">{{ tax_group }}</div></div>
@@ -48,13 +58,42 @@
         <div></div>
         {% for field in profile_form %}
           <label class="field{% if field.name == 'registration_address' or field.name == 'tax_office_name' %} span-2{% endif %}">
-            <span>{{ field.label }}</span>
+            <span>{{ field.label }}{% if field.field.disabled %} <span class="dps-badge">ДПС</span>{% endif %}</span>
             {{ field }}
             {% if field.help_text %}<small class="hint">{{ field.help_text }}</small>{% endif %}
             {{ field.errors }}
           </label>
         {% endfor %}
       </div>
+
+      {% if payer_card.groups %}
+        <section class="payer-card" aria-labelledby="payer-card-title">
+          <h3 class="kep-heading" id="payer-card-title">Облікові дані платника з кабінету ДПС</h3>
+          {% for group in payer_card.groups %}
+            <details class="payer-group">
+              <summary>{{ group.title|default:"Без назви" }}</summary>
+              {% if group.kind == "table" %}
+                {% if group.rows %}
+                  <div class="table-scroll">
+                    <table class="payer-table">
+                      <thead><tr>{% for header in group.headers %}<th>{{ header.1 }}</th>{% endfor %}</tr></thead>
+                      <tbody>
+                        {% for row in group.rows %}<tr>{% for cell in row %}<td>{{ cell|default:"—" }}</td>{% endfor %}</tr>{% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                {% else %}
+                  <p class="no-data">Записів немає.</p>
+                {% endif %}
+              {% else %}
+                <dl class="payer-pairs">
+                  {% for pair in group.pairs %}<dt>{{ pair.0 }}</dt><dd>{{ pair.1|default:"—" }}</dd>{% endfor %}
+                </dl>
+              {% endif %}
+            </details>
+          {% endfor %}
+        </section>
+      {% endif %}
 
       {# ── KEP section ──────────────────────────────── #}
       <div class="kep-section" id="kep-section">
@@ -77,10 +116,10 @@
   <div class="dialog-foot split">
     <form method="post" action="{% url 'logout' %}">
       {% csrf_token %}
-      <button type="submit" class="btn secondary">Вийти</button>
+      <button type="submit" class="btn secondary">Вийти з системи</button>
     </form>
     <div class="dialog-actions">
-      <button type="button" class="btn secondary" data-close-dialog>Відміна</button>
+      <button type="button" class="btn secondary" data-close-dialog>Закрити</button>
       <button type="submit" class="btn" form="cabinet-form">Зберегти і вийти</button>
     </div>
   </div>
@@ -120,6 +159,23 @@
   <div class="dialog-foot">
     <button type="button" class="btn secondary" data-close-dialog>Ні</button>
     <button type="button" class="btn danger" id="kep-confirm-delete-btn">Так, видалити</button>
+  </div>
+</dialog>
+
+{# ── KEP password dialog, shared by every action that signs in to the tax cabinet ── #}
+<dialog id="kep-sign-dialog" aria-labelledby="kep-sign-title">
+  <div class="dialog-body">
+    <h2 id="kep-sign-title">Пароль ключа КЕП</h2>
+    <p class="sync-pwd-hint">Ключ підписує РНОКПП у браузері. Пароль на сервер не передається.</p>
+    <label class="field" style="margin-top:8px">
+      <span>Пароль</span>
+      <input type="password" id="kep-sign-password" class="box" autocomplete="current-password">
+    </label>
+    <p id="kep-sign-error" class="kep-add-error" hidden></p>
+  </div>
+  <div class="dialog-foot">
+    <button type="button" class="btn secondary" id="kep-sign-cancel">Відміна</button>
+    <button type="button" class="btn" id="kep-sign-btn">Підписати</button>
   </div>
 </dialog>
 

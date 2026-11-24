@@ -1,8 +1,9 @@
 import json
 import logging
-import urllib.request
 from datetime import timedelta
 from decimal import Decimal
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +32,10 @@ def rate_date_for(day):
 def fetch_rate(code, day):
     url = RATE_URL.format(code=code, day=day)
     try:
-        with urllib.request.urlopen(url, timeout=10) as response:
-            data = json.loads(response.read().decode("utf-8"), parse_float=Decimal)
-    except (OSError, ValueError) as exc:
+        response = httpx.get(url, timeout=10)
+        response.raise_for_status()
+        data = json.loads(response.text, parse_float=Decimal)
+    except (httpx.HTTPError, ValueError) as exc:
         logger.warning("NBU rate request failed for %s on %s: %s", code, day, exc)
         raise RateUnavailable from exc
     for item in data:
